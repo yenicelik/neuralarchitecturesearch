@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torch.autograd import Variable
+from torchviz import make_dot
 
 class Net(nn.Module):
 
@@ -38,3 +40,11 @@ class Net(nn.Module):
 if __name__ == "__main__":
     net = Net()
     print(net)
+
+    inputs = torch.randn(1, 1, 32, 32)
+    y = net(Variable(inputs))
+    # print(y)
+
+    print(y)
+    g = make_dot(y)
+    g.view()

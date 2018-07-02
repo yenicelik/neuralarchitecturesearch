@@ -1,0 +1,69 @@
+digraph {
+	graph [size="12,12"]
+	node [align=left fontsize=12 height=0.2 ranksep=0.1 shape=box style=filled]
+	4412732136 [label=AddmmBackward]
+	4412732024 -> 4412732136
+	4412732024 [label=ExpandBackward]
+	4412713728 -> 4412732024
+	4412713728 [label="
+ (10)" fillcolor=lightblue]
+	4412713168 -> 4412732136
+	4412713168 [label=ReluBackward]
+	4412791384 -> 4412713168
+	4412791384 [label=AddmmBackward]
+	4412791440 -> 4412791384
+	4412791440 [label=ExpandBackward]
+	4412792560 -> 4412791440
+	4412792560 [label="
+ (84)" fillcolor=lightblue]
+	4412792392 -> 4412791384
+	4412792392 [label=ReluBackward]
+	4412792616 -> 4412792392
+	4412792616 [label=AddmmBackward]
+	4412792672 -> 4412792616
+	4412792672 [label=ExpandBackward]
+	4412821688 -> 4412792672
+	4412821688 [label="
+ (120)" fillcolor=lightblue]
+	4412792784 -> 4412792616
+	4412792784 [label=ViewBackward]
+	4412821744 -> 4412792784
+	4412821744 [label=MaxPool2DBackward]
+	4412821800 -> 4412821744
+	4412821800 [label=ReluBackward]
+	4412821968 -> 4412821800
+	4412821968 [label=ThnnConv2DBackward]
+	4412822080 -> 4412821968
+	4412822080 [label=MaxPool2DBackward]
+	4412822304 -> 4412822080
+	4412822304 [label=ReluBackward]
+	4412822416 -> 4412822304
+	4412822416 [label=ThnnConv2DBackward]
+	4412822528 -> 4412822416
+	4412822528 [label="
+ (6, 1, 5, 5)" fillcolor=lightblue]
+	4412822584 -> 4412822416
+	4412822584 [label="
+ (6)" fillcolor=lightblue]
+	4412822136 -> 4412821968
+	4412822136 [label="
+ (16, 6, 5, 5)" fillcolor=lightblue]
+	4412822192 -> 4412821968
+	4412822192 [label="
+ (16)" fillcolor=lightblue]
+	4412821576 -> 4412792616
+	4412821576 [label=TBackward]
+	4412821856 -> 4412821576
+	4412821856 [label="
+ (120, 400)" fillcolor=lightblue]
+	4412792448 -> 4412791384
+	4412792448 [label=TBackward]
+	4412792728 -> 4412792448
+	4412792728 [label="
+ (84, 120)" fillcolor=lightblue]
+	4412713896 -> 4412732136
+	4412713896 [label=TBackward]
+	4412792336 -> 4412713896
+	4412792336 [label="
+ (10, 84)" fillcolor=lightblue]
+}

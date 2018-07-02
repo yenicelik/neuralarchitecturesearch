@@ -9,7 +9,6 @@
 """
 
 # Local Library imports
-from torchviz import make_dot
 
 from src.config import config
 # from src.child.utils import make_dot
@@ -23,6 +22,8 @@ import pickle
 import torch
 import torch.nn as nn
 import torch.legacy.nn as legacy_nn
+from torch.autograd import Variable
+from torchviz import make_dot
 
 PARAMETERS = {
     'input_size': 32,
@@ -50,6 +51,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
         PARAMETERS['hidden_size']
     )
     torch.nn.init.uniform_(W['x'], a=a, b=b)
+    W['x'] = Variable(W['x'])
 
     # Create weights for hidden states transitions
     for i in range(1, total_number_of_nodes):
@@ -60,6 +62,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
             PARAMETERS['hidden_size']
         )
         torch.nn.init.uniform_(W[str(i)], a=a, b=b)
+        W[str(i)] = Variable(W[str(i)])
 
     # For all input nodes
     for i in range(1, total_number_of_nodes):
@@ -72,6 +75,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
                 PARAMETERS['hidden_size']
             )
             torch.nn.init.uniform_(W[name], a=a, b=b)
+            W[name] = Variable(W[name])
 
     with open(config['datapath_save_weights'] + config['filename_weights'], 'wb') as handle:
         pickle.dump(W, handle)
@@ -199,7 +203,6 @@ class CustomCell(nn.Module):
         a = {}
 
         # The first operations always acts on the input!
-        # TODO: how to work with the "input" field. It would be really good to actually have random dataset to test this out
         a['1'] = self.multiply_weight_dependent_on_input_x(1, x, h)
         a['1'] = self.get_activation_function(ops[0], a['1'])
 
@@ -215,6 +218,11 @@ class CustomCell(nn.Module):
             else:
                 a[str(node)] = self.multiply_weight_dependent_on_node_i(node, a[str(prev_node)], prev_node)
                 a[str(node)] = self.get_activation_function(activation, a[str(node)])
+
+            print(a[str(node)])
+            g = make_dot(a[str(node)])
+            g.view()
+            # input("Press Enter to continue...")
 
         # Identify loose ends
         loose_ends = self.recognize_loose_ends()
@@ -317,7 +325,7 @@ if __name__ == "__main__":
     torch.nn.init.uniform_(last_hidden, a=-0.025, b=0.025)
     torch.nn.init.uniform_(inp_x, a=-0.025, b=0.025)
 
-    y = child_network_cell.forward(inp_x, last_hidden)
+    y = child_network_cell(Variable(inp_x), Variable(last_hidden))
 
     print("Success forward run")
 
