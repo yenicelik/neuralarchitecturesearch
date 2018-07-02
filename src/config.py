@@ -12,4 +12,5 @@ elif platform == "darwin":
     config['basepath'] = "/Users/davidal/neuralarchitecturesearch/"
     config['dev'] = True
 
-config['datapath_save_weights'] = "model/weights/"
+config['datapath_save_weights'] = config['basepath'] + "model/weights/"
+config['filename_weights'] = "weights_dictionary.pkl"
