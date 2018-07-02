@@ -51,7 +51,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
         PARAMETERS['hidden_size']
     )
     torch.nn.init.uniform_(W['x'], a=a, b=b)
-    W['x'] = Variable(W['x'])
+    W['x'] = Variable(W['x'], requires_grad=True)
 
     # Create weights for hidden states transitions
     for i in range(1, total_number_of_nodes):
@@ -62,7 +62,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
             PARAMETERS['hidden_size']
         )
         torch.nn.init.uniform_(W[str(i)], a=a, b=b)
-        W[str(i)] = Variable(W[str(i)])
+        W[str(i)] = Variable(W[str(i)], requires_grad=True)
 
     # For all input nodes
     for i in range(1, total_number_of_nodes):
@@ -75,7 +75,7 @@ def spawn_all_weights_if_non_existent(total_number_of_nodes):
                 PARAMETERS['hidden_size']
             )
             torch.nn.init.uniform_(W[name], a=a, b=b)
-            W[name] = Variable(W[name])
+            W[name] = Variable(W[name], requires_grad=True)
 
     with open(config['datapath_save_weights'] + config['filename_weights'], 'wb') as handle:
         pickle.dump(W, handle)
@@ -174,9 +174,10 @@ class CustomCell(nn.Module):
         elif digit == 1:
             return nn.ReLU()(inp)
         elif digit == 2:
-            m = legacy_nn.Identity()
-            return m.updateOutput(inp)
+            # m = legacy_nn.Identity()
+            # return m.updateOutput(inp)
             # return (lambda x: x)
+            return inp
         elif digit == 3:
             return nn.Sigmoid()(inp)
         else:
@@ -206,6 +207,11 @@ class CustomCell(nn.Module):
         a['1'] = self.multiply_weight_dependent_on_input_x(1, x, h)
         a['1'] = self.get_activation_function(ops[0], a['1'])
 
+        # print(a['1'])
+        # g = make_dot(a['1'])
+        # g.view()
+        input("Enter...")
+
         # Iterate over all ops, and add the last layer, and activation function to it
         for node in range(1, self.number_of_ops):
             assert isinstance(node, int), ("Node is not of type int!", node, type(node))
@@ -219,9 +225,9 @@ class CustomCell(nn.Module):
                 a[str(node)] = self.multiply_weight_dependent_on_node_i(node, a[str(prev_node)], prev_node)
                 a[str(node)] = self.get_activation_function(activation, a[str(node)])
 
-            print(a[str(node)])
-            g = make_dot(a[str(node)])
-            g.view()
+            # print(a[str(node)])
+            # g = make_dot(a[str(node)])
+            # g.view()
             # input("Press Enter to continue...")
 
         # Identify loose ends
@@ -325,7 +331,7 @@ if __name__ == "__main__":
     torch.nn.init.uniform_(last_hidden, a=-0.025, b=0.025)
     torch.nn.init.uniform_(inp_x, a=-0.025, b=0.025)
 
-    y = child_network_cell(Variable(inp_x), Variable(last_hidden))
+    y = child_network_cell(Variable(inp_x, requires_grad=True), Variable(last_hidden, requires_grad=True))
 
     print("Success forward run")
 
