@@ -106,14 +106,14 @@ def get_weights(to_node, from_node):
 
 class CustomCell(nn.Module):
 
-    def __init__(self, net_descr, weights):
+    def __init__(self, cell_descr, weights):
         super(CustomCell, self).__init__()
 
         # TODO: Do some assertion, that the numbers conform with the shape of the network as given by the bitstring
         self.weights = weights
 
         # Parse string
-        ops = net_descr.split()
+        ops = cell_descr.split()
         self.ops = [int(x) for x in ops]
 
         print("The following cell will be used by the spawned child network")
@@ -246,7 +246,7 @@ class CustomCell(nn.Module):
         return mean_of_loose_ends
 
 
-def create_cell_from_string(net_descr):
+def create_cell_from_string(cell_descr):
     """
         Given a digit string, we spawn a cell that the RNN will unroll in the next step
 
@@ -264,10 +264,10 @@ def create_cell_from_string(net_descr):
                 h2 = ReLU( h2 )
             h2 = ReLU( h_1 * W_{2, 1}^{h} )
 
-    :param net_descr: The digit-string that describes the composition of the network
+    :param cell_descr: The digit-string that describes the composition of the network
     :return:
     """
-    ops = net_descr.split()
+    ops = cell_descr.split()
     ops = [int(x) for x in ops]
     print(ops)
 
@@ -278,6 +278,10 @@ def create_cell_from_string(net_descr):
 
 
 def create_model_from_cell():
+    """
+        Looks like we manually unroll the RNN depending on the input
+    :return:
+    """
     pass
 
 
@@ -311,6 +315,7 @@ if __name__ == "__main__":
         weights = spawn_all_weights_if_non_existent(total_nodes)
     else:
         # Maybe assert that there are "number of ops" keys (proportionally)?
+        print("Loading weights from memory...")
         weights = load_weights_from_memory()
 
     # Save the weights here maybe?
