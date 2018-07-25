@@ -46,7 +46,9 @@ class RNNNet(nn.Module):
         return output, hidden
 
     def forward(self, inputs, hidden=None, force=True, steps=0):
-        if force or steps == 0: steps = len(inputs)
+        if force or steps == 0:
+            steps = len(inputs)
+            
         outputs = Variable(torch.zeros(steps, 1, 1))
         output = None
 
