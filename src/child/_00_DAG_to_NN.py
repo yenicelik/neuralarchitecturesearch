@@ -276,6 +276,8 @@ def create_cell_from_string(cell_descr):
     # Create same operatoins for every other pair of strings
     pass
 
+# From the custom cell, we can create a custom NN
+
 if __name__ == "__main__":
     # Spawn the cell by the cell description:
     digit_string = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"

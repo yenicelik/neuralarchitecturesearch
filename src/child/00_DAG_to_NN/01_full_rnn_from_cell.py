@@ -1,12 +1,12 @@
 import torch
 from torch import nn
 from torch.autograd import Variable
-from torch.nn import RNN, LSTM
-
-from src.playground.rnn_tries.rnn_tries import CustomRNNCell
-
 
 class RNNBasedOnCell(nn.Module):
+    """
+        Assuming we are given a custom cell,
+        we can easily generate a RNN wrapper that uses this specifc cell
+    """
 
     def __init__(self, cell, input_size, batch_size, hidden_size):
         super(RNNBasedOnCell, self).__init__()
@@ -67,69 +67,4 @@ class RNNBasedOnCell(nn.Module):
         print("Outputs have shape: ", all_outputs.shape)
 
         return all_outputs
-
-if __name__ == "__main__":
-    print("Starting to train the full rnn...")
-
-    # Generate hyperparameters
-    batch_size = 3
-    input_size = 5
-    hidden_size = 7
-    seq_length = 11
-
-    # Do some example forward passes
-    # Generate random matrices for input:
-    # The first element denotes the sequence length. This is necessary for internal pytorch purposes
-
-    # Generate training set
-    X = torch.Tensor(seq_length, batch_size, input_size)
-    Y = torch.Tensor(seq_length, batch_size, input_size)
-
-    # Initialize the inputs
-    torch.nn.init.uniform_(X, a=-0.025, b=0.025)
-    torch.nn.init.uniform_(Y, a=-0.025, b=0.025)
-
-    # Make sure the shapes confirm
-    assert X.shape == Y.shape, ("Shapes do not conform!", X.shape, Y.shape)
-
-    # Define additional components
-    cell = CustomRNNCell(input_size, hidden_size, batch_size)
-    # cell = RNN(input_size=input_size, hidden_size=hidden_size)
-    # cell = LSTM(input_size=input_size, hidden_size=hidden_size)
-
-    # Create the model to take in the cell
-    model = RNNBasedOnCell(
-        cell,
-        input_size=input_size,
-        batch_size=batch_size,
-        hidden_size=hidden_size
-    )
-
-    # Make a forward pass through the model
-    Y_hat = model.forward(X)
-
-    criterion = nn.MSELoss()
-
-    old_weights_hidden = model.hidden.clone()
-    old_weights_output = model.hidden.clone()
-
-    optimizer = torch.optim.SGD(
-        model.parameters()
-        # [model.hidden, model.output_weights, model.cell.parameters()]
-        , lr=10)
-
-    print("Model parameters are: ")
-    for para in model.parameters():
-        print(para)
-
-    optimizer.zero_grad()
-
-    loss = criterion(Y_hat, Y)
-    loss.backward()
-    optimizer.step()
-
-    print("Model parameters are: ")
-    for para in model.parameters():
-        print(para)
-
 
