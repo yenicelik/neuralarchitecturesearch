@@ -40,6 +40,9 @@ class RecurrentNN(nn.Module):
         self.rnn = nn.RNN(input_size=self.input_size, hidden_size=self.hidden_size, num_layers=1)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
+        # TODO: load hidden from memory ()
+        self.hidden = None
+
     def step(self, input, hidden=None):
         """
             This is one step, for a single timestep (batch and hidden size stays the same)
@@ -52,7 +55,7 @@ class RecurrentNN(nn.Module):
         output = self.out(output.squeeze(1))
         return output, hidden
 
-    def forward(self, inputs, hidden=None, force=True):
+    def forward(self, inputs):
         """
             What is this force attribute?
         :param input:
@@ -75,6 +78,29 @@ class RecurrentNN(nn.Module):
             outputs[i, :, :] = output
 
         return outputs, hidden
+
+def train_step(model, input_line, target_line):
+    """
+        Given a recurrent model, which takes in an input, and a target,
+        trains this model on this input and target lines
+    :param model:
+    :param input_line:
+    :param target_line:
+    :return:
+    """
+    # Reshape targets etc.
+
+    model.zero_grad() # Reset all gradients
+
+    loss = 0.
+
+    # Apply the training steps
+    y_hat = model.forward(input_line)
+
+    # Compare the predicted output to the real output
+
+
+
 
 
 
