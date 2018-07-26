@@ -3,6 +3,7 @@ from torch import optim
 from torch import nn
 
 # Assume we have one rnn defined as global
+from torch.autograd import Variable
 from torch.nn import RNN
 
 from src.child._00_DAG_to_NN import PARAMETERS
@@ -36,7 +37,7 @@ class RecurrentNN(nn.Module):
         self.output_size = self.input_size
 
         # TODO: should save these values as weight-saveable values
-        self.rnn = nn.RNN(input_size=self.input_size, hidden_size=self.hidden_size)
+        self.rnn = nn.RNN(input_size=self.input_size, hidden_size=self.hidden_size, num_layers=1)
         self.out = nn.Linear(self.hidden_size, self.output_size)
 
     def step(self, input, hidden=None):
@@ -51,7 +52,31 @@ class RecurrentNN(nn.Module):
         output = self.out(output.squeeze(1))
         return output, hidden
 
-    def forward(self, input, hidden=None, force=True, steps=0):
+    def forward(self, inputs, hidden=None, force=True):
+        """
+            What is this force attribute?
+        :param input:
+        :param hidden:
+        :param force:
+        :param steps:
+        :return:
+        """
+        steps = len(inputs)
+        outputs = Variable(torch.zeros(steps, 1, 1)) # TODO: the shape of the output should be difference
+        output = None
+
+        for i in range(steps):
+            if output is None: # This will be only during the first step
+                input = inputs[i, :, :]
+            else:
+                input = output
+
+            output, hidden = self.step(input, hidden)
+            outputs[i, :, :] = output
+
+        return outputs, hidden
+
+
 
 # Defining peripheral functions, such as loss function etc.
 
@@ -116,7 +141,7 @@ if __name__ == "__main__":
     torch.nn.init.uniform_(inp_x, a=-0.025, b=0.025)
 
     # Spawn a vanilla RNN cell for inputs
-    rnn = RNN(input_size=PARAMETERS['input_size'], hidden_size=PARAMETERS['hidden_size'])
+    rnn = RNN(input_size=PARAMETERS['input_size'], hidden_size=PARAMETERS['hidden_size'], num_layers=1)
 
     # Do some training steps just to check syntactic integrity
     inp = inp_x[:-1, :, :]
