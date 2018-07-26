@@ -23,6 +23,7 @@ class CustomRNNCell(nn.Module):
     def forward(self, input, hidden):
         # TODO: does this take into consideraion the batch size?
         output, new_hidden = self.cell.forward(input, hidden)
+        assert list(output.size()) == [1, self.batch_size, self.hidden_size], ("Sizes do not conform!", output.shape, (1, self.batch_size, self.hidden_size))
         return output, new_hidden
 
 if __name__ == "__main__":
