@@ -1,6 +1,6 @@
 """
     This is one example RNN which uses the interface given by the Base class.
-    We will use
+    We will use the RNN cell as this provides the right interface for the NAS we will later implement
 """
 
 import numpy as np
@@ -48,7 +48,7 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         :param X:
         :return:
         """
-        return self.embedding_module_encoder(inputx)[None, :, :]
+        return self.embedding_module_encoder(inputx)[None, :]
 
     def embedding_decoder(self, inputx):
         """
@@ -68,7 +68,6 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         return self.cell_module(inputx, hidden)
 
     def forward(self, X):
-
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
         time_steps = X.size(0)
@@ -99,6 +98,7 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         output = torch.cat(outputs, 0)
         print(output.size())
 
+        return output
 
 
 if __name__ == "__main__":

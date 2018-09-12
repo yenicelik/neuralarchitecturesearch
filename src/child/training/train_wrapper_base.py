@@ -10,7 +10,9 @@ class TrainWrapperBase:
 
     def train(self, X, Y):
         """
-            Trains the model on a certain dataset
+            Trains the model on a certain dataset.
+            We plan to train the model for a sequence (i.e. sequence to sequence) task.
+            X should be of size
         :param X: The data
         :param Y: The shape
         :return:
