@@ -36,27 +36,27 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         self.embedding_module = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
 
         # Use probably only in this example
-        self.cell_module = nn.LSTM(input_size=8, hidden_size=128)
+        self.cell_module = nn.RNN(input_size=8, hidden_size=128)
 
         # Later on, we will spawn these cells ourselves
         # self.cell = nn.LSTM(128, 128, 2)
 
-    def embedding(self, X):
+    def embedding(self, inputx):
         """
             Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
         :param X:
         :return:
         """
-        return self.embedding_module(X)
+        return self.embedding_module(inputx)
 
-    def cell(self, X):
+    def cell(self, inputx, hidden):
         """
             Use an LSTM as an example cell
         :return:
         """
         # return nn.LSTM(128, 128, 2, dropout=0.05)
         # raise NotImplementedError
-        return self.cell_module(X)
+        return self.cell_module(inputx, hidden)
 
     def forward(self, X):
         time_steps = X.size(0)
@@ -64,7 +64,7 @@ class dlxExampleRNNModule(dlxRNNModelBase):
 
         # First input to cell
         embedded_X = self.embedding(X[0, :])[None, :, :]
-        logits, hidden = self.cell(embedded_X)
+        logits, hidden = self.cell(inputx=embedded_X, hidden=None)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
@@ -73,7 +73,7 @@ class dlxExampleRNNModule(dlxRNNModelBase):
             print(X[i, :].size())
 
             embedded_X = self.embedding(X[i, :])[None, :, :]
-            logit, hidden = self.cell(embedded_X, hidden)
+            logit, hidden = self.cell(inputx=embedded_X, hidden=hidden)
 
             print(embedded_X[:].size())
 
@@ -84,5 +84,5 @@ if __name__ == "__main__":
     model = dlxExampleRNNModule()
 
     # Example forward pass
-    X = random_tensor((2, 4, 50))
+    X = random_tensor((5, 4, 50))
     model.forward(X)
