@@ -62,14 +62,18 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         time_steps = X.size(0)
         batch_size = X.size(1)
 
-        # Dynamic unrolling of the cell
-        for i in range(time_steps):
+        # First input to cell
+        embedded_X = self.embedding(X[0, :])[None, :, :]
+        logits, hidden = self.cell(embedded_X)
+
+        # Dynamic unrolling of the cell for the rest of the timesteps
+        for i in range(1, time_steps):
             print("Unrolling...", i)
 
             print(X[i, :].size())
 
             embedded_X = self.embedding(X[i, :])[None, :, :]
-            self.cell(embedded_X)
+            logit, hidden = self.cell(embedded_X, hidden)
 
             print(embedded_X[:].size())
 
