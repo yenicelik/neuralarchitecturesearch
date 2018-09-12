@@ -57,8 +57,9 @@ class ExampleTrainWrapper(TrainWrapperBase):
             loss.backward()
             self.optimizer.step()
 
-            # losses[train_idx] = loss
+            losses[train_idx] = loss
 
+        print(losses)
 
 
 if __name__ == "__main__":
