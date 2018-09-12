@@ -1,0 +1,6 @@
+*.pyc
+*.npy
+*.pkl
+.DS_Store
+.idea/
+virt/
