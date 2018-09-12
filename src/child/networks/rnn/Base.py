@@ -32,7 +32,7 @@ class dlxRNNModelBase(nn.Module):
         raise NotImplementedError
 
     def __init__(self):
-        super(dlxRNNModelBase).__init__()
+        super(dlxRNNModelBase, self).__init__()
 
     def cell(self, X):
         raise NotImplementedError

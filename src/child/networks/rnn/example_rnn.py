@@ -30,10 +30,24 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         assert False
 
     def __init__(self):
-        super(dlxExampleRNNModule).__init__()
+        super(dlxExampleRNNModule, self).__init__()
+
+        # Used probably for every application
+        self.embedding_module = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
+
+        # Use probably only in this example
+        self.cell_module = nn.LSTM(input_size=8, hidden_size=128)
 
         # Later on, we will spawn these cells ourselves
         # self.cell = nn.LSTM(128, 128, 2)
+
+    def embedding(self, X):
+        """
+            Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
+        :param X:
+        :return:
+        """
+        return self.embedding_module(X)
 
     def cell(self, X):
         """
@@ -42,7 +56,7 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         """
         # return nn.LSTM(128, 128, 2, dropout=0.05)
         # raise NotImplementedError
-        return self.cell(X)
+        return self.cell_module(X)
 
     def forward(self, X):
         time_steps = X.size(0)
@@ -52,6 +66,13 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         for i in range(time_steps):
             print("Unrolling...", i)
 
+            print(X[i, :].size())
+
+            embedded_X = self.embedding(X[i, :])[None, :, :]
+            self.cell(embedded_X)
+
+            print(embedded_X[:].size())
+
 
 
 if __name__ == "__main__":
@@ -59,5 +80,5 @@ if __name__ == "__main__":
     model = dlxExampleRNNModule()
 
     # Example forward pass
-    X = random_tensor((12, 2, 4))
+    X = random_tensor((2, 4, 50))
     model.forward(X)
