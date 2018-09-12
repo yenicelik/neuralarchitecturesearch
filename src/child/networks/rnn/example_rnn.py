@@ -33,21 +33,30 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         super(dlxExampleRNNModule, self).__init__()
 
         # Used probably for every application
-        self.embedding_module = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
+        self.embedding_module_encoder = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
+        self.embedding_module_decoder = nn.Linear(7, 50)
 
         # Use probably only in this example
-        self.cell_module = nn.RNN(input_size=8, hidden_size=128)
+        self.cell_module = nn.RNN(input_size=8, hidden_size=7)
 
         # Later on, we will spawn these cells ourselves
         # self.cell = nn.LSTM(128, 128, 2)
 
-    def embedding(self, inputx):
+    def embedding_encoder(self, inputx):
         """
             Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
         :param X:
         :return:
         """
-        return self.embedding_module(inputx)
+        return self.embedding_module_encoder(inputx)[None, :, :]
+
+    def embedding_decoder(self, inputx):
+        """
+                    Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
+                :param X:
+                :return:
+                """
+        return self.embedding_module_decoder(inputx)
 
     def cell(self, inputx, hidden):
         """
@@ -59,12 +68,19 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         return self.cell_module(inputx, hidden)
 
     def forward(self, X):
+
+        assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
+
         time_steps = X.size(0)
         batch_size = X.size(1)
 
+        outputs = []
+
         # First input to cell
-        embedded_X = self.embedding(X[0, :])[None, :, :]
-        logits, hidden = self.cell(inputx=embedded_X, hidden=None)
+        embedded_X = self.embedding_encoder(X[0, :])
+        logit, hidden = self.cell(inputx=embedded_X, hidden=None)
+        decoded_logit = self.embedding_decoder(logit)
+        outputs.append(decoded_logit)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
@@ -72,10 +88,16 @@ class dlxExampleRNNModule(dlxRNNModelBase):
 
             print(X[i, :].size())
 
-            embedded_X = self.embedding(X[i, :])[None, :, :]
+            embedded_X = self.embedding_encoder(X[i, :])
             logit, hidden = self.cell(inputx=embedded_X, hidden=hidden)
+            decoded_logit = self.embedding_decoder(logit)
+            outputs.append(decoded_logit)
 
             print(embedded_X[:].size())
+            print(logit.size())
+
+        output = torch.cat(outputs, 0)
+        print(output.size())
 
 
 

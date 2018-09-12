@@ -34,10 +34,10 @@ class dlxRNNModelBase(nn.Module):
     def __init__(self):
         super(dlxRNNModelBase, self).__init__()
 
-    def cell(self, X):
+    def cell(self, inputx, hidden):
         raise NotImplementedError
 
-    def forward(self, X):
+    def forward(self, inputx):
         """
 
             time_steps = X.size(0)
