@@ -39,7 +39,7 @@ class ExampleTrainWrapper(TrainWrapperBase):
 
         data_size = X.size(0)
         timestep_length = 10
-        losses = torch.empty(data_size)
+        losses = torch.empty(data_size//timestep_length)
 
         # Do exactly one epoch
         for train_idx in range(0, data_size, timestep_length):
@@ -54,10 +54,15 @@ class ExampleTrainWrapper(TrainWrapperBase):
 
             Y_hat = self.model.forward(X)
             loss = self.criterion(Y_hat, Y)
+            print("Loss: ", loss)
             loss.backward()
             self.optimizer.step()
 
-            losses[train_idx] = loss
+            losses[train_idx//timestep_length] = loss
+
+        print(losses)
+
+        losses = losses / (data_size // timestep_length)
 
         print(losses)
 
