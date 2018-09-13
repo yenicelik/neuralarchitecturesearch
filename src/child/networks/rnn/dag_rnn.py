@@ -10,27 +10,45 @@ from torch import nn
 from src.child.networks.rnn.Base import dlxRNNModelBase
 from src.utils.random_tensor import random_tensor
 
+# Import all utils functions, as we're gonna need them
+from src.child.networks.rnn.dag_utils.activation_function import get_activation_function
+from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
+from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 
-class dlxExampleRNNModule(dlxRNNModelBase):
+class dlxDAGRNNModule(dlxRNNModelBase):
     """
         We don't need a backward pass, as this is implicitly computed by the forward pass
         -- Write tests if the backward pass actually optimizes the parameters
     """
 
     def _name(self):
-        return "ExampleRNN_using_RNNCell"
+        return "dlxDAGRNNModule"
 
-    def build_network(self, description_string):
+    def build_cell(self, inputx, hidden, dag):
         """
 
         :param description_string: The string which defines the cell of the unrolled RNN in the ENAS paper
         :return:
         """
         # This is not needed for this example network (which uses LSTMs)
-        assert False
+        assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
+
+        print("Building cell")
+        number_of_blocks = (len(dag) // 2)
+
+        # The following dictionary saves the partial of the individual blocks, so we can easily refer to these individual blocks
+        partial_outputs = {}
+
+        # The first operation is an activation function
+        partial_outputs['1'] = get_activation_function(dag[0], inputx)
+
+        # Now apply the ongoing operations
+        for i in range(1, len(dag), 2):
+            print("Building the cell: ", dag[i], dag[i+1])
+
 
     def __init__(self):
-        super(dlxExampleRNNModule, self).__init__()
+        super(dlxDAGRNNModule, self).__init__()
 
         # Used probably for every application
         self.embedding_module_encoder = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
@@ -39,8 +57,8 @@ class dlxExampleRNNModule(dlxRNNModelBase):
         # Use probably only in this example
         self.cell_module = nn.RNN(input_size=8, hidden_size=7)
 
-        # Later on, we will spawn these cells ourselves
-        # self.cell = nn.LSTM(128, 128, 2)
+        # Spawn all weights here (as these weights will be shared)
+        self.weights = generate_weights(50, num_blocks=10)
 
     def embedding_encoder(self, inputx):
         """
@@ -103,8 +121,15 @@ class dlxExampleRNNModule(dlxRNNModelBase):
 
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
-    model = dlxExampleRNNModule()
+    model = dlxDAGRNNModule()
 
     # Example forward pass
     X = random_tensor((5, 4, 50))
     model.forward(X)
+
+    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+
+    dag_list = [int(x) for x in dag_description.split()]
+    print(dag_list)
+
+    model.build_cell(inputx=X, hidden=None, dag=dag_list)
