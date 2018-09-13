@@ -10,23 +10,33 @@ from torch import nn
 
 
 def generate_weights(hidden_size, num_blocks):
-    out = collections.defaultdict(dict)
 
-    for idx in range(num_blocks):
-        for jdx in range(idx + 1, num_blocks):
+    hidden2block = collections.defaultdict(dict)
+    block2block = collections.defaultdict(dict)
+
+    for idx in range(1, num_blocks+1):
+        print("Generating the lienar connection between the previous hidden input, and the block: ", idx)
+        hidden2block[idx] = nn.Linear(
+            in_features=hidden_size,
+            out_features=hidden_size,
+            bias=False
+        )
+
+    for idx in range(1, num_blocks+1):
+        for jdx in range(idx + 1, num_blocks+1):
             print("Generating the linear connection between blocks: ", idx, jdx)
-            out[idx][jdx] = nn.Linear(
+            block2block[idx][jdx] = nn.Linear(
                 in_features=hidden_size,
                 out_features=hidden_size,
                 bias=False
             )
 
-    return out
+    return hidden2block, block2block
 
 
 if __name__ == "__main__":
     print("Starting to generate the connections...")
 
-    module_list = generate_weights(8, 5)
+    hidden2block, block2block = generate_weights(8, 5)
 
     print(module_list)

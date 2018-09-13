@@ -24,6 +24,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
     def _name(self):
         return "dlxDAGRNNModule"
 
+    lambda inp, hidden: build_cell(inp, hidden, [10, 24, 1])
+
     def build_cell(self, inputx, hidden, dag):
         """
 
@@ -40,25 +42,58 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         partial_outputs = {}
 
         # The first operation is an activation function
-        partial_outputs['1'] = get_activation_function(dag[0], inputx)
+        # Contrary to the paper, the input is always x W^{x}, as we always apply an embedding
+
+        print( "Hidden has shape: ", hidden.size() )
+        print(" Multiplied hidden has shape: ", self.weight_hidden2block[0](hidden).size() )
+        print(" Input has shape: ", inputx.size() )
+        first_input = inputx + self.weight_hidden2block[0](hidden)
+        partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
         # Now apply the ongoing operations
-        for i in range(1, len(dag), 2):
-            print("Building the cell: ", dag[i], dag[i+1])
+        for current_block in range(1, len(dag)//2):
+            previous_block = dag[2*current_block]
+            activation_op = dag[2*current_block * 1]
+
+            if previous_block == 0:
+                tmp = inputx + self.weight_hidden2block[current_block]( hidden )
+                partial_outputs[str(current_block+1)] = get_activation_function(
+                    digit=activation_op,
+                    inp=tmp
+                )
+
+            else:
+
+                previous_output = partial_outputs[str(previous_block)] # Check if this indexing adds up
+                previous_output = self.weight_block2block[previous_block][current_block]( previous_output )
+                partial_outputs[str(current_block+1)] = get_activation_function(
+                    digit=activation_op,
+                    inp=previous_output
+                )
+
+        # Identify the loose ends:
+        # loose_ends = identify_loose_ends(dag)
+
+        # Return the average of all the loose ends
+        # outputs = []
+        # for i in loose_ends:
+        #     outputs.append(partial_outputs[str(i)][None, :])
+        # averaged_output = torch.cat(outputs, 0)
+
+        # return averaged_output
 
 
-    def __init__(self):
+    def __init__(self, dag):
         super(dlxDAGRNNModule, self).__init__()
+
+        assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
 
         # Used probably for every application
         self.embedding_module_encoder = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
         self.embedding_module_decoder = nn.Linear(7, 50)
 
-        # Use probably only in this example
-        self.cell_module = nn.RNN(input_size=8, hidden_size=7)
-
         # Spawn all weights here (as these weights will be shared)
-        self.weights = generate_weights(50, num_blocks=10)
+        self.weight_hidden2block, self.weight_block2block = generate_weights(50, num_blocks=10)
 
     def embedding_encoder(self, inputx):
         """
@@ -101,35 +136,41 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
-            print("Unrolling...", i)
+            # print("Unrolling...", i)
 
-            print(X[i, :].size())
+            # print(X[i, :].size())
 
             embedded_X = self.embedding_encoder(X[i, :])
             logit, hidden = self.cell(inputx=embedded_X, hidden=hidden)
             decoded_logit = self.embedding_decoder(logit)
             outputs.append(decoded_logit)
 
-            print(embedded_X[:].size())
-            print(logit.size())
+            # print(embedded_X[:].size())
+            # print(logit.size())
 
         output = torch.cat(outputs, 0)
-        print(output.size())
+        # print(output.size())
 
         return output
 
 
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
-    model = dlxDAGRNNModule()
 
     # Example forward pass
-    X = random_tensor((5, 4, 50))
-    model.forward(X)
-
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-
     dag_list = [int(x) for x in dag_description.split()]
     print(dag_list)
 
-    model.build_cell(inputx=X, hidden=None, dag=dag_list)
+    # X = random_tensor((5, 4, 50))
+
+    X = torch.randn((5, 4, 50))
+    # hidden = random_tensor([50,])
+
+    hidden = torch.randn((50,)) # Has size (BATCH, TIMESTEP, SIZE)
+
+    # model.forward(X)
+    model = dlxDAGRNNModule(dag=dag_list)
+
+    for i in range(100):
+        model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
