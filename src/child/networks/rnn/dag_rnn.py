@@ -4,21 +4,26 @@
 """
 
 import numpy as np
-from graphviz import Digraph
 import torch
 from torch import nn
 from torchviz import make_dot
 from torch.autograd import Variable
 
 from src.child.networks.rnn.Base import dlxRNNModelBase
+from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 from src.utils.random_tensor import random_tensor
 
 # Import all utils functions, as we're gonna need them
-from src.child.networks.rnn.dag_utils.activation_function import get_activation_function
+from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 
 GEN_GRAPH = True
+if GEN_GRAPH:
+    import pygraphviz as pgv
+    import matplotlib
+    import matplotlib.pyplot as plt
+
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
         We don't need a backward pass, as this is implicitly computed by the forward pass
@@ -41,7 +46,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
 
         if GEN_GRAPH:
-            pass
+            graph = pgv.AGraph(directed=True, strict=True,
+                               fontname='Helvetica', arrowtype='open')  # not work?
+            for i in range(0, self.number_of_blocks):
+                graph.add_node("Block " + str(i), color='black', fillcolor='pink')
 
         # print("Building cell")
 
@@ -49,7 +57,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         partial_outputs = {}
 
         # The first operation is an activation function
-        first_input = self.embedding_encoder(inputx) + self.weight_hidden2block[0](hidden)
+        print("Cell inputs to current block: ", 1)
+        first_input = self.embedding_encoder(inputx) + self.weight_hidden2block[1](hidden)
+        print("Activation: ", _get_activation_function_name(dag[0]))
         partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
         # Now apply the ongoing operations
@@ -59,21 +69,31 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             activation_op = dag[2*i]
 
             if previous_block == 0:
+                print("Cell inputs to current block: ", current_block)
                 tmp = self.embedding_encoder(inputx) + self.weight_hidden2block[current_block]( hidden )
                 partial_outputs[str(current_block)] = get_activation_function(
                     digit=activation_op,
                     inp=tmp
                 )
+                print("Activation: ", _get_activation_function_name(activation_op))
                 assert partial_outputs[str(current_block)].size() == tmp.size(), ("Not the case!")
 
+                if GEN_GRAPH:
+                    graph.add_edge("Block " + str(0), "Block " + str(current_block), label=_get_activation_function_name(activation_op))
+
             else:
+                print("Previous block to current block: ", previous_block, current_block)
                 previous_output = partial_outputs[str(previous_block)] # Check if this indexing adds up
                 previous_output = self.weight_block2block[previous_block][current_block]( previous_output )
                 assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
+                print("Activation: ", _get_activation_function_name(activation_op))
                 partial_outputs[str(current_block)] = get_activation_function(
                     digit=activation_op,
                     inp=previous_output
                 )
+
+                if GEN_GRAPH:
+                    graph.add_edge("Block " + str(previous_block), "Block " + str(current_block), label=_get_activation_function_name(activation_op))
 
         # Identify the loose ends:
         loose_ends = identify_loose_ends(dag)
@@ -88,8 +108,17 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         hidden = torch.mean(averaged_output, dim=0)
         logits = self.embedding_decoder(hidden)
 
-        g = make_dot(hidden, params=dict(self.get_all_parameters_with_names()))
-        g.view()
+        if GEN_GRAPH:
+            print("Printing graph...")
+            graph.layout(prog='dot')
+            graph.draw('./tmp/cell_viz.png')
+            # plt.show()
+
+        # g = make_dot(hidden, params=dict(self.get_all_parameters_with_names()))
+        # g.view()
+        # exit(0)
+        # draw_network(" ".join(dag), "./tmp/")
+        # print(self)
         exit(0)
 
         return logits, hidden
@@ -162,6 +191,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
+
+    "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    "1   2   3   4   5   6   7   8   9   10  11  12 "
 
     # Example forward pass
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"

@@ -24,3 +24,17 @@ def get_activation_function(digit, inp):
     else:
         raise Exception("The activation digit is not between 0 and 3! ", digit)
 
+def _get_activation_function_name(digit):
+    if digit == 0:
+        return "tanh"
+    elif digit == 1:
+        return "relu"
+    elif digit == 2:
+        return "id"
+    elif digit == 3:
+        return "sigmoid"
+    else:
+        raise Exception("The activation digit is not between 0 and 3! ", digit)
+
+
+

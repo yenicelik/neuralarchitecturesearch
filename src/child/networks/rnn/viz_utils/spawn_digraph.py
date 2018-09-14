@@ -19,3 +19,9 @@ def get_all_parameters_with_names(self):
         for jdx in range(idx + 1, self.number_of_blocks):
             out += [('block2block', self.weight_block2block[idx][jdx])]
     return out
+
+class GraphWarpper:
+
+    def __init__(self):
+        nodes = {}
+

@@ -10,11 +10,17 @@ from torch import nn
 
 
 def generate_weights(hidden_size, num_blocks):
+    """
+        This number 0 is reserved for the input.
+    :param hidden_size:
+    :param num_blocks:
+    :return:
+    """
 
     hidden2block = collections.defaultdict(dict)
     block2block = collections.defaultdict(dict)
 
-    for idx in range(num_blocks):
+    for idx in range(1, num_blocks+1):
         print("Generating the lienar connection between the previous hidden input, and the block: ", idx)
         hidden2block[idx] = nn.Linear(
             in_features=hidden_size,
@@ -22,7 +28,7 @@ def generate_weights(hidden_size, num_blocks):
             bias=False
         )
 
-    for idx in range(num_blocks):
+    for idx in range(1, num_blocks+1):
         for jdx in range(idx + 1, num_blocks+1): # Do we add a +1 here?
             print("Generating the linear connection between blocks: ", idx, jdx)
             block2block[idx][jdx] = nn.Linear(
