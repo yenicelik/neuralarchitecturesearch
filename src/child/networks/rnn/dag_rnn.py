@@ -19,6 +19,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
     """
         We don't need a backward pass, as this is implicitly computed by the forward pass
         -- Write tests if the backward pass actually optimizes the parameters
+        The embedding functions are not embeddings per se.
+        -> These functions just allow for a linear transformation of the input shape to the hidden shape.
     """
 
     def _name(self):
@@ -40,12 +42,6 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         partial_outputs = {}
 
         # The first operation is an activation function
-        # Contrary to the paper, the input is always x W^{x}, as we always apply an embedding
-
-        # print( "Hidden has shape: ", hidden.size() )
-        # print(" Multiplied hidden has shape: ", self.weight_hidden2block[0](hidden).size() )
-        # print(" Input has shape: ", inputx.size() )
-
         first_input = self.embedding_encoder(inputx) + self.weight_hidden2block[0](hidden)
         partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
@@ -127,10 +123,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             Use an LSTM as an example cell
         :return:
         """
-        # return nn.LSTM(128, 128, 2, dropout=0.05)
-        # raise NotImplementedError
-        # If hidden is none, then spawn a hidden cell
-        if hidden is None:
+        if hidden is None: # If hidden is none, then spawn a hidden cell
             hidden = torch.randn((8,))  # Has size (BATCH, TIMESTEP, SIZE)
         return self.build_cell(inputx, hidden, self.dag)
 
@@ -149,19 +142,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
-            # print("Unrolling...", i)
-
-            # print(X[i, :].size())
 
             current_X = X[i, :]
             logit, hidden = self.cell(inputx=current_X, hidden=hidden)
             outputs.append(logit)
 
-            # print(embedded_X[:].size())
-            # print(logit.size())
-
         output = torch.cat(outputs, 0)
-        # print(output.size())
 
         return output
 
