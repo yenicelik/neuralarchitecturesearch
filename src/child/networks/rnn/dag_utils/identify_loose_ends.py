@@ -19,10 +19,6 @@ def identify_loose_ends(dag):
     # Loose blocks:
     loose_blocks = [x for x in all_blocks if x not in used_blocks]
 
-    print("All blocks ", all_blocks)
-    print("Used blocks ", used_blocks)
-    print("Loose blocks ", loose_blocks)
-
     return loose_blocks
 
 if __name__ == "__main__":

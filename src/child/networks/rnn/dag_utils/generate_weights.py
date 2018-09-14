@@ -14,7 +14,7 @@ def generate_weights(hidden_size, num_blocks):
     hidden2block = collections.defaultdict(dict)
     block2block = collections.defaultdict(dict)
 
-    for idx in range(1, num_blocks+1):
+    for idx in range(num_blocks):
         print("Generating the lienar connection between the previous hidden input, and the block: ", idx)
         hidden2block[idx] = nn.Linear(
             in_features=hidden_size,
@@ -22,7 +22,7 @@ def generate_weights(hidden_size, num_blocks):
             bias=False
         )
 
-    for idx in range(1, num_blocks+1):
+    for idx in range(num_blocks):
         for jdx in range(idx + 1, num_blocks+1):
             print("Generating the linear connection between blocks: ", idx, jdx)
             block2block[idx][jdx] = nn.Linear(
