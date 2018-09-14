@@ -4,8 +4,11 @@
 """
 
 import numpy as np
+from graphviz import Digraph
 import torch
 from torch import nn
+from torchviz import make_dot
+from torch.autograd import Variable
 
 from src.child.networks.rnn.Base import dlxRNNModelBase
 from src.utils.random_tensor import random_tensor
@@ -15,6 +18,7 @@ from src.child.networks.rnn.dag_utils.activation_function import get_activation_
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 
+GEN_GRAPH = True
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
         We don't need a backward pass, as this is implicitly computed by the forward pass
@@ -36,6 +40,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # This is not needed for this example network (which uses LSTMs)
         assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
 
+        if GEN_GRAPH:
+            pass
+
         # print("Building cell")
 
         # The following dictionary saves the partial of the individual blocks, so we can easily refer to these individual blocks
@@ -46,26 +53,24 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
         # Now apply the ongoing operations
-        for current_block in range(1, self.number_of_blocks): # We start array-indexing with 1, because block 0 refers to the input!
-            previous_block = dag[2*current_block - 1]
-            activation_op = dag[2*current_block]
-
-            # print("Previous block: ", previous_block)
-            # print("Activation op: ", activation_op)
+        for i in range(1, self.number_of_blocks): # We start array-indexing with 1, because block 0 refers to the input!
+            current_block = i + 1
+            previous_block = dag[2*i - 1]
+            activation_op = dag[2*i]
 
             if previous_block == 0:
                 tmp = self.embedding_encoder(inputx) + self.weight_hidden2block[current_block]( hidden )
-                partial_outputs[str(current_block+1)] = get_activation_function(
+                partial_outputs[str(current_block)] = get_activation_function(
                     digit=activation_op,
                     inp=tmp
                 )
-                assert partial_outputs[str(current_block+1)].size() == tmp.size(), ("Not the case!")
+                assert partial_outputs[str(current_block)].size() == tmp.size(), ("Not the case!")
 
             else:
                 previous_output = partial_outputs[str(previous_block)] # Check if this indexing adds up
                 previous_output = self.weight_block2block[previous_block][current_block]( previous_output )
                 assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
-                partial_outputs[str(current_block+1)] = get_activation_function(
+                partial_outputs[str(current_block)] = get_activation_function(
                     digit=activation_op,
                     inp=previous_output
                 )
@@ -83,8 +88,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         hidden = torch.mean(averaged_output, dim=0)
         logits = self.embedding_decoder(hidden)
 
-        return logits, hidden
+        g = make_dot(hidden, params=dict(self.get_all_parameters_with_names()))
+        g.view()
+        exit(0)
 
+        return logits, hidden
 
     def __init__(self, dag):
         super(dlxDAGRNNModule, self).__init__()
@@ -124,7 +132,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         if hidden is None: # If hidden is none, then spawn a hidden cell
-            hidden = torch.randn((8,))  # Has size (BATCH, TIMESTEP, SIZE)
+            hidden = Variable(torch.randn((8,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
         return self.build_cell(inputx, hidden, self.dag)
 
     def forward(self, X):

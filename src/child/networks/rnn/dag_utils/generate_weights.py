@@ -23,7 +23,7 @@ def generate_weights(hidden_size, num_blocks):
         )
 
     for idx in range(num_blocks):
-        for jdx in range(idx + 1, num_blocks+1):
+        for jdx in range(idx + 1, num_blocks+1): # Do we add a +1 here?
             print("Generating the linear connection between blocks: ", idx, jdx)
             block2block[idx][jdx] = nn.Linear(
                 in_features=hidden_size,
