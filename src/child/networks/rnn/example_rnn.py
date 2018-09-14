@@ -8,8 +8,6 @@ import torch
 from torch import nn
 
 from src.child.networks.rnn.Base import dlxRNNModelBase
-from src.utils.random_tensor import random_tensor
-
 
 class dlxExampleRNNModule(dlxRNNModelBase):
     """
@@ -83,20 +81,20 @@ class dlxExampleRNNModule(dlxRNNModelBase):
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
-            print("Unrolling...", i)
+            # print("Unrolling...", i)
 
-            print(X[i, :].size())
+            # print(X[i, :].size())
 
             embedded_X = self.embedding_encoder(X[i, :])
             logit, hidden = self.cell(inputx=embedded_X, hidden=hidden)
             decoded_logit = self.embedding_decoder(logit)
             outputs.append(decoded_logit)
 
-            print(embedded_X[:].size())
-            print(logit.size())
+            # print(embedded_X[:].size())
+            # print(logit.size())
 
         output = torch.cat(outputs, 0)
-        print(output.size())
+        # print(output.size())
 
         return output
 
@@ -106,5 +104,5 @@ if __name__ == "__main__":
     model = dlxExampleRNNModule()
 
     # Example forward pass
-    X = random_tensor((5, 4, 50))
+    X = torch.randn((5, 4, 50))
     model.forward(X)

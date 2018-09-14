@@ -6,11 +6,11 @@ import torch
 from torch import nn
 from tensorboardX import SummaryWriter
 
-from src.child.networks.rnn.example_rnn import dlxExampleRNNModule
+from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
 from src.child.training.train_wrapper_base import TrainWrapperBase
 
 
-class ExampleTrainWrapper(TrainWrapperBase):
+class DAGTrainWrapper(TrainWrapperBase):
 
     def debug_tools(self):
         """
@@ -26,7 +26,7 @@ class ExampleTrainWrapper(TrainWrapperBase):
         self.model = model
 
         self.criterion = nn.MSELoss()
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01) # The .parameters is required, and automatically built-in into any torch model
+        self.optimizer = torch.optim.Adam(self.model.parameters()) # The .parameters is required, and automatically built-in into any torch model
 
         self.debug_tools()
 
@@ -74,7 +74,6 @@ class ExampleTrainWrapper(TrainWrapperBase):
             if train_idx % 100 == 0: # Export the tensorboard representation
                 self.writer.export_scalars_to_json("./tmp/all_scalar.json")
 
-
         losses = losses / (data_size // timestep_length)
 
         print(losses)
@@ -83,10 +82,14 @@ class ExampleTrainWrapper(TrainWrapperBase):
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
 
-    # model = dlxExampleRNNModule()
-    model = dlxExampleRNNModule()
+    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    dag_list = [int(x) for x in dag_description.split()]
+    print(dag_list)
 
-    trainer = ExampleTrainWrapper(model)
+    # model = dlxExampleRNNModule()
+    model = dlxDAGRNNModule(dag=dag_list)
+
+    trainer = DAGTrainWrapper(model)
     # Example forward pass
     X = torch.randn((2001, 4, 50))
     trainer.train(X[:2000,:], X[1:,:])
