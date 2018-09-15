@@ -35,7 +35,7 @@ class ExampleTrainWrapper(TrainWrapperBase):
             Trains the model on a certain dataset.
             The datasets have to be of the shape:
 
-            X.size() <- (total_length, batch_size, **data_size )
+            X.size() <- (batch_size, total_length, **data_size )
 
             --> Watch out! There should be a cutoff and padding amongst batches!
 
@@ -88,5 +88,5 @@ if __name__ == "__main__":
 
     trainer = ExampleTrainWrapper(model)
     # Example forward pass
-    X = torch.randn((2001, 4, 50))
-    trainer.train(X[:2000,:], X[1:,:])
+    X = torch.randn((101, 4, 50))
+    trainer.train(X[:100,:], X[1:,:])

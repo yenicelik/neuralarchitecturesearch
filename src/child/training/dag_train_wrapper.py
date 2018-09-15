@@ -18,7 +18,7 @@ class DAGTrainWrapper(TrainWrapperBase):
         :return:
         """
         # Debugging tools
-        self.writer = SummaryWriter()
+        self.writer = SummaryWriter(log_dir="/Users/david/neuralarchitecturesearch/tmp/runs/")
 
     def __init__(self, model):
         super(TrainWrapperBase, self).__init__()
@@ -72,7 +72,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             self.writer.add_scalar('loss/train_loss', loss, train_idx)
 
             if train_idx % 100 == 0: # Export the tensorboard representation
-                self.writer.export_scalars_to_json("./tmp/all_scalar.json")
+                self.writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
 
         losses = losses / (data_size // timestep_length)
 
@@ -91,5 +91,5 @@ if __name__ == "__main__":
 
     trainer = DAGTrainWrapper(model)
     # Example forward pass
-    X = torch.randn((2001, 4, 50))
-    trainer.train(X[:2000,:], X[1:,:])
+    X = torch.randn((401, 4, 50))
+    trainer.train(X[:400,:], X[1:,:])
