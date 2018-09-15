@@ -4,6 +4,7 @@
     2. the controller (based on the loss of the child model)
 """
 import torch
+import random
 from torch.autograd import Variable
 
 from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
@@ -12,30 +13,24 @@ from src.child.training.dag_train_wrapper import DAGTrainWrapper
 
 class MetaTrainer:
 
-    def __init__(self):
-        self.max_length = 30
-        # self.child = dlxDAGRNNModule()
-
-    def _get_batch(self, source, idx, batch_size=None, volatile=False):
+    def __init__(self, X_train, Y_train, X_val, Y_val, X_test, Y_test):
         """
-            From the batchifies source, which has shape
-                (total_samples, length, **data_size)
-            we extract a exactly 'batch_size' many elements
-        :param source:
-        :param idx:
-        :param length:
-        :param volatile:
-        :return:
+            All the X's have to be of the following shape:
+                X.size() <- (total_data_size, time_length, **data_size )
+
+        :param X_train:
+        :param Y_train:
+        :param X_val:
+        :param Y_val:
+        :param X_test:
+        :param Y_test:
         """
-        if batch_size is None:
-            batch_size = 30
-
-        length = source.size(1) - 1
-
-        data = Variable(source[idx:idx + batch_size, :length])
-        target = Variable(source[idx:idx + batch_size, 1:length+1])
-
-        return data, target
+        self.X_train = X_train
+        self.Y_train = Y_train
+        self.X_val = X_val
+        self.Y_val = Y_val
+        self.X_test = X_test
+        self.Y_test = Y_test
 
     def train_child(self, dag):
         # This should be replaced by batch getters
@@ -43,11 +38,12 @@ class MetaTrainer:
         model = dlxDAGRNNModule(dag)
         self.child_trainer = DAGTrainWrapper(model)
 
-        X = torch.randn((401, 4, 50))
-        self.child_trainer.train(X[:400, :], X[1:, :])
+        # Prepare the sequence data (to be shifter by one on the time-axis)
+        self.child_trainer.train(self.X_train, self.Y_train)
 
     def get_child_validation_loss(self):
-        pass
+        # TODO: Implement
+        return random.random()
 
     def train_controller_and_child(self):
         # Setting up the trainers
@@ -56,10 +52,13 @@ class MetaTrainer:
             dag_list = [int(x) for x in dag_description.split()]
             self.train_child(dag_list)
 
+            loss = self.get_child_validation_loss()
+            print(loss)
+
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
-    meta_trainer = MetaTrainer()
+    meta_trainer = MetaTrainer(None, None, None, None, None, None)
     # meta_trainer.train()
 
     from src.preprocessor.text import Corpus, batchify
@@ -68,22 +67,29 @@ if __name__ == "__main__":
     corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
     print(corpus.test)
 
-    batch = batchify(corpus.train, 31, use_cuda=False)
+    batch = batchify(corpus.train, 11, use_cuda=False)
     print(batch)
     print(batch.size())
 
-    data, target = meta_trainer._get_batch(batch, 10)
-    print(data.size())
-    print(target.size())
-
+    # data, target = meta_trainer._get_batch(batch, 10)
+    # print(data.size())
+    # print(target.size())
+    data = batch[:, 0:10]
+    target = batch[:, 1:11]
 
     def to_word(x):
         return corpus.dictionary.idx2word[x]
 
+    c = 0
     for idx in range(data.size(0)):
         print([to_word(data[idx][jdx]) for jdx in range(data.size(1))])
         print([to_word(target[idx][jdx]) for jdx in range(target.size(1))])
         print("\n")
+        c += 1
+        if c > 50:
+            break
+
+    # As a test, run the train_child function with the batchloader)
 
     # print(to_word)
 

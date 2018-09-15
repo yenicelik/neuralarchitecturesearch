@@ -5,6 +5,7 @@
 import torch
 from torch import nn
 from tensorboardX import SummaryWriter
+from torch.autograd import Variable
 
 from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
 from src.child.training.train_wrapper_base import TrainWrapperBase
@@ -35,7 +36,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             Trains the model on a certain dataset.
             The datasets have to be of the shape:
 
-            X.size() <- (batch_size, total_length, **data_size )
+            X.size() <- (total_data_size, time_length, **data_size )
 
             --> Watch out! There should be a cutoff and padding amongst batches!
 
