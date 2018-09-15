@@ -35,7 +35,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             Trains the model on a certain dataset.
             The datasets have to be of the shape:
 
-            X.size() <- (total_length, batch_size, **data_size )
+            X.size() <- (batch_size, total_length, **data_size )
 
             --> Watch out! There should be a cutoff and padding amongst batches!
 
