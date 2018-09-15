@@ -44,5 +44,3 @@ if __name__ == "__main__":
     print("Starting to generate the connections...")
 
     hidden2block, block2block = generate_weights(8, 5)
-
-    print(module_list)

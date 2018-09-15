@@ -53,12 +53,11 @@ class MetaTrainer:
             self.train_child(dag_list)
 
             loss = self.get_child_validation_loss()
-            print(loss)
+            print("Loss: ", loss)
 
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
-    meta_trainer = MetaTrainer(None, None, None, None, None, None)
     # meta_trainer.train()
 
     from src.preprocessor.text import Corpus, batchify
@@ -74,20 +73,31 @@ if __name__ == "__main__":
     # data, target = meta_trainer._get_batch(batch, 10)
     # print(data.size())
     # print(target.size())
-    data = batch[:, 0:10]
-    target = batch[:, 1:11]
+    data = batch[:100, 0:10, None]
+    target = batch[:100, 1:11, None]
 
     def to_word(x):
         return corpus.dictionary.idx2word[x]
 
-    c = 0
-    for idx in range(data.size(0)):
-        print([to_word(data[idx][jdx]) for jdx in range(data.size(1))])
-        print([to_word(target[idx][jdx]) for jdx in range(target.size(1))])
-        print("\n")
-        c += 1
-        if c > 50:
-            break
+    # c = 0
+    # for idx in range(data.size(0)):
+    #     print([to_word(data[idx][jdx]) for jdx in range(data.size(1))])
+    #     print([to_word(target[idx][jdx]) for jdx in range(target.size(1))])
+    #     print("\n")
+    #     c += 1
+    #     if c > 50:
+    #         break
+
+    meta_trainer = MetaTrainer(
+        X_train=data,
+        Y_train=target,
+        X_val=data,
+        Y_val=target,
+        X_test=data,
+        Y_test=target
+    )
+
+    meta_trainer.train_controller_and_child()
 
     # As a test, run the train_child function with the batchloader)
 

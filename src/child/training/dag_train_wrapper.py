@@ -26,7 +26,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         self.model = model
 
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.NLLLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters()) # The .parameters is required, and automatically built-in into any torch model
 
         self.debug_tools()
@@ -58,11 +58,11 @@ class DAGTrainWrapper(TrainWrapperBase):
                 break
 
             print("Training! At step: ", train_idx)
-            X_cur = X[train_idx:train_idx+timestep_length, :]
-            Y_cur = Y[train_idx:train_idx+timestep_length, :]
+            X_cur = X[train_idx:train_idx+timestep_length, :].transpose(0, 1)
+            Y_cur = Y[train_idx:train_idx+timestep_length, :].transpose(0, 1)
             print("Shapes are: ", X_cur.size(), Y_cur.size())
 
-            Y_hat = self.model.forward(X)
+            Y_hat = self.model.forward(X).long()
             loss = self.criterion(Y_hat, Y)
             print("Loss: ", loss)
             loss.backward()
