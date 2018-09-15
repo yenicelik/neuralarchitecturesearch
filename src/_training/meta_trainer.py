@@ -80,7 +80,6 @@ if __name__ == "__main__":
     def to_word(x):
         return corpus.dictionary.idx2word[x]
 
-
     for idx in range(data.size(0)):
         print([to_word(data[idx][jdx]) for jdx in range(data.size(1))])
         print([to_word(target[idx][jdx]) for jdx in range(target.size(1))])
