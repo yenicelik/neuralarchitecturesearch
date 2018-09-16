@@ -43,7 +43,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             import pygraphviz as pgv
             graph = pgv.AGraph(directed=True, strict=True,
                                fontname='Helvetica', arrowtype='open')  # not work?
-            for i in range(0, self.number_of_blocks + 1):
+            for i in range(0, self.max_number_of_blocks + 1):
                 graph.add_node("Block " + str(i), color='black', shape='box', style='filled', fillcolor='pink')
 
         # print("Building cell")
@@ -66,7 +66,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Now apply the ongoing operations
         for i in range(1,
-                       self.number_of_blocks):  # We start array-indexing with 1, because block 0 refers to the input!
+                       self.max_number_of_blocks):  # We start array-indexing with 1, because block 0 refers to the input!
             current_block = i + 1
             previous_block = dag[2 * i - 1]
             activation_op = dag[2 * i]
@@ -105,7 +105,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                                    label=_get_activation_function_name(activation_op))
 
         # Identify the loose ends:
-        loose_ends = identify_loose_ends(dag, self.number_of_blocks)
+        loose_ends = identify_loose_ends(dag, self.max_number_of_blocks)
 
         # Return the average of all the loose ends
         outputs = []
@@ -136,12 +136,14 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             hidden = Variable(torch.randn((8,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
         return self.build_cell(inputx, hidden, self.dag)
 
-    def __init__(self, dag):
+    def overwrite_dag(self, new_dag):
+        assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
+        self.dag = new_dag
+
+    def __init__(self, max_number_of_blocks):
         super(dlxDAGRNNModule, self).__init__()
 
-        assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
-
-        self.dag = dag
+        self.max_number_of_blocks = max_number_of_blocks # Should include "0" as the first block
 
         # Used probably for every application
         self.cell_embedding_module_encoder = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
@@ -150,10 +152,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.word_embedding_module_encoder = torch.nn.Embedding(10000, 50)
         self.word_embedding_module_decoder = nn.Linear(50, 10000)
 
-        self.number_of_blocks = (len(dag) // 2) + 1  # Includes "0" as the first block
-
         # Spawn all weights here (as these weights will be shared)
-        self.weight_hidden2block, self.weight_block2block = generate_weights(8, num_blocks=self.number_of_blocks)
+        self.weight_hidden2block, self.weight_block2block = generate_weights(8, num_blocks=self.max_number_of_blocks)
 
     def cell_embedding_encoder(self, inputx):
         """
@@ -180,7 +180,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
     def forward(self, X):
         """
             X must be of the following shape:
-                -> (time_steps, batch_size, **data_size)
+                -> (batch_size, time_steps, **data_size)
         :param X:
         :return:
         """
@@ -192,7 +192,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         outputs = []
 
         # First input to cell
-        current_X = X[0, :]
+        current_X = X[:, 0]
         current_X = self.word_embedding_encoder(current_X)
         logit, hidden = self.cell(inputx=current_X, hidden=None)
         logit = self.word_embedding_decoder(logit)
@@ -200,13 +200,14 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
-            current_X = X[i, :]
+            current_X = X[:, i]
             current_X = self.word_embedding_encoder(current_X)
             logit, hidden = self.cell(inputx=current_X, hidden=hidden)
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
 
         output = torch.cat(outputs, 0)
+        # Take argmax amongst last axis,
 
         return output
 

@@ -8,7 +8,6 @@ import collections
 import torch
 from torch import nn
 
-
 def generate_weights(hidden_size, num_blocks):
     """
         This number 0 is reserved for the input.

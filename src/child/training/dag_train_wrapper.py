@@ -5,11 +5,15 @@
 import torch
 from torch import nn
 from tensorboardX import SummaryWriter
-from torch.autograd import Variable
 
 from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
 from src.child.training.train_wrapper_base import TrainWrapperBase
+from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 
+
+# Debug tools
+from src.preprocessor.text import Corpus, batchify
+corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
 
 class DAGTrainWrapper(TrainWrapperBase):
 
@@ -26,7 +30,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         self.model = model
 
-        self.criterion = nn.NLLLoss()
+        self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters()) # The .parameters is required, and automatically built-in into any torch model
 
         self.debug_tools()
@@ -57,14 +61,23 @@ class DAGTrainWrapper(TrainWrapperBase):
             if train_idx + timestep_length > data_size:
                 break
 
-            print("Training! At step: ", train_idx)
-            X_cur = X[train_idx:train_idx+timestep_length, :].transpose(0, 1)
-            Y_cur = Y[train_idx:train_idx+timestep_length, :].transpose(0, 1)
-            print("Shapes are: ", X_cur.size(), Y_cur.size())
+            X_cur = X[train_idx:train_idx+timestep_length, :]
+            Y_cur = Y[train_idx:train_idx+timestep_length, :]
+            # print_batches(X_cur, Y_cur)
+            # exit(0)
+            # X_cur = X_cur.transpose(0, 1)
+            # Y_cur = Y_cur.transpose(0, 1)
 
-            Y_hat = self.model.forward(X).long()
-            loss = self.criterion(Y_hat, Y)
-            print("Loss: ", loss)
+            Y_hat = self.model.forward(X_cur)
+            # Take argmax because classification
+            # print("Output from model rnn is: ", Y_hat.size())
+            # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
+            Y_hat = Y_hat.transpose(1, -1) # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_hat = Y_hat.transpose(2, -1)
+            # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
+            # print("Input types are: ", Y_hat.type(), Y_cur.type())
+            loss = self.criterion(Y_hat, Y_cur)
+            # print("Loss: ", loss)
             loss.backward()
             self.optimizer.step()
 

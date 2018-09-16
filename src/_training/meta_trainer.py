@@ -9,6 +9,7 @@ from torch.autograd import Variable
 
 from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
 from src.child.training.dag_train_wrapper import DAGTrainWrapper
+from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 
 
 class MetaTrainer:
@@ -32,11 +33,14 @@ class MetaTrainer:
         self.X_test = X_test
         self.Y_test = Y_test
 
+        # Spawn one child model
+        self.child_model = dlxDAGRNNModule(12)
+        self.child_trainer = DAGTrainWrapper(self.child_model)
+
     def train_child(self, dag):
         # This should be replaced by batch getters
         # Spawn child trainer and model
-        model = dlxDAGRNNModule(dag)
-        self.child_trainer = DAGTrainWrapper(model)
+        self.child_model.overwrite_dag(dag)
 
         # Prepare the sequence data (to be shifter by one on the time-axis)
         self.child_trainer.train(self.X_train, self.Y_train)
@@ -47,7 +51,7 @@ class MetaTrainer:
 
     def train_controller_and_child(self):
         # Setting up the trainers
-        for current_epoch in range(3):
+        for current_epoch in range(10):
             dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
             dag_list = [int(x) for x in dag_description.split()]
             self.train_child(dag_list)
@@ -60,33 +64,11 @@ if __name__ == "__main__":
     print("Starting to train the meta model")
     # meta_trainer.train()
 
-    from src.preprocessor.text import Corpus, batchify
+    data, target = load_dataset(dev=True)
 
-    print("Starting corpus: ")
-    corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
-    print(corpus.test)
+    # print_batches(data, target)
 
-    batch = batchify(corpus.train, 11, use_cuda=False)
-    print(batch)
-    print(batch.size())
-
-    # data, target = meta_trainer._get_batch(batch, 10)
-    # print(data.size())
-    # print(target.size())
-    data = batch[:100, 0:10, None]
-    target = batch[:100, 1:11, None]
-
-    def to_word(x):
-        return corpus.dictionary.idx2word[x]
-
-    # c = 0
-    # for idx in range(data.size(0)):
-    #     print([to_word(data[idx][jdx]) for jdx in range(data.size(1))])
-    #     print([to_word(target[idx][jdx]) for jdx in range(target.size(1))])
-    #     print("\n")
-    #     c += 1
-    #     if c > 50:
-    #         break
+    # print("Input to the meta trainer is: ", data.size(), target.size())
 
     meta_trainer = MetaTrainer(
         X_train=data,
