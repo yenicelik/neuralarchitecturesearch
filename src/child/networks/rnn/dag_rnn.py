@@ -53,11 +53,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # The first operation is an activation function
         # print("Cell inputs to current block: ", 1)
+
         first_input = self.cell_embedding_encoder(inputx) + self.weight_hidden2block[1](hidden)
         partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
         if GEN_GRAPH:
-            print("0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1")
+            print(dag)
             print(1, "Previous block: ", 0, ":: Activation: ", dag[0])
             print("Activation: ", _get_activation_function_name(dag[0]))
 
