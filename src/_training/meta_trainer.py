@@ -7,8 +7,8 @@ import torch
 import random
 from torch.autograd import Variable
 
-from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
-from src.child.training.dag_train_wrapper import DAGTrainWrapper
+import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
+import src.child.training.dag_train_wrapper as dag_train_wrapper
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 
 
@@ -34,8 +34,8 @@ class MetaTrainer:
         self.Y_test = Y_test
 
         # Spawn one child model
-        self.child_model = dlxDAGRNNModule(12)
-        self.child_trainer = DAGTrainWrapper(self.child_model)
+        self.child_model = dag_rnn.dlxDAGRNNModule(12)
+        self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 
     def train_child(self, dag):
         # This should be replaced by batch getters

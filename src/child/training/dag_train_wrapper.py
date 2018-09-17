@@ -6,10 +6,7 @@ import torch
 from torch import nn
 from tensorboardX import SummaryWriter
 
-from src.child.networks.rnn.dag_rnn import dlxDAGRNNModule
 from src.child.training.train_wrapper_base import TrainWrapperBase
-from src._training.debug_utils.rnn_debug import print_batches, load_dataset
-
 
 # Debug tools
 from src.preprocessor.text import Corpus, batchify
@@ -74,6 +71,11 @@ class DAGTrainWrapper(TrainWrapperBase):
             # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
             Y_hat = Y_hat.transpose(1, -1) # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_hat = Y_hat.transpose(2, -1)
+
+            Y_cur = Y_cur.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_cur = Y_cur.transpose(2, -1)
+            print("Shape of real Y and found Y: ", Y_hat.size(), Y_cur.size())
+            Y_cur = Y_cur.squeeze()
             # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
             # print("Input types are: ", Y_hat.type(), Y_cur.type())
             loss = self.criterion(Y_hat, Y_cur)
@@ -99,9 +101,10 @@ if __name__ == "__main__":
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]
     print(dag_list)
+    import src.child.networks.rnn.dag_rnn as dag_rnn
 
     # model = dlxExampleRNNModule()
-    model = dlxDAGRNNModule(dag=dag_list)
+    model = dag_rnn.dlxDAGRNNModule(dag=dag_list)
 
     trainer = DAGTrainWrapper(model)
     # Example forward pass
