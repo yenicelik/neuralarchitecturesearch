@@ -29,6 +29,51 @@ class dlxDAGRNNModule(dlxRNNModelBase):
     def _name(self):
         return "dlxDAGRNNModule"
 
+    # The following are functions, that are used within build_cell, and build_cell only
+    def _connect_input(self, inputx, hidden, act_fun):
+        """
+                # TODO: modify this equation!
+                h_j = c_j*f_{ij}{(W^h_{ij}*h_i)} + (1 - c_j)*h_i,
+                    where c_j = \sigmoid{(W^c_{ij}*h_i)}
+        :param inputx:
+        :param hidden:
+        :return:
+        """
+        # Calculate the c's
+        tmp = self.w_input_to_c(inputx) + self.w_previous_hidden_to_c(hidden)
+        c = torch.nn.Sigmoid()(tmp)
+
+        tmp = self.w_input_to_h(inputx) + self.w_previous_hidden_to_h(hidden)
+        tmp = act_fun(tmp)
+
+        # Calculate the hidden block output
+        t1 = torch.mul(c, tmp)
+        t2 = torch.mul(1.-c, hidden)
+        return t1 + t2
+
+    def _connect_block(self, internal_hidden, i, j, act_fun):
+        """
+            Connects block i to block j (i->j)
+            The smallest block we can connect from is block 0! # TODO: fix the indecies (as 0 is the one with the first output!
+                h_j = c_j*f_{ij}{(W^h_{ij}*h_i)} + (1 - c_j)*h_i,
+                    where c_j = \sigmoid{(W^c_{ij}*h_i)}
+        :param block_output:
+        :param i: is the block number that we are connecting from
+        :param j: is the block number that we are connecting to
+        :return:
+        """
+        # Calculate the c's
+        tmp = self.c_weight_block2block[i][j](internal_hidden)
+        c = torch.nn.Sigmoid()(tmp)
+
+        # Calculate the hidden block output
+        tmp = self.h_weight_block2block[i][j](internal_hidden)
+        tmp = act_fun(tmp)
+        t1 = torch.mul(c, tmp)
+        t2 = torch.mul(1.-c, internal_hidden)
+
+        return t1 + t2
+
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
             This function will be used as the cell right away, as pytorch has a dynamical computation graph
@@ -54,7 +99,20 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # The first operation is an activation function
         # print("Cell inputs to current block: ", 1)
 
-        first_input = self.cell_embedding_encoder(inputx) + self.weight_hidden2block[1](hidden)
+        #######
+        def act_f(x):
+            return get_activation_function(digit=dag[0], inp=x)
+
+        # TODO: Check out which weights to use
+        c = torch.nn.Sigmoid()()
+
+        c[0] = F.sigmoid(self.w_xc(x) + F.linear(h_prev, self.w_hc, None))
+        h[0] = (c[0] * f[0](self.w_xh(x) + F.linear(h_prev, self.w_hh, None)) +
+                (1 - c[0]) * h_prev)
+
+        #######
+
+        first_input = self.cell_embedding_encoder(inputx) + self.h_weight_hidden2block[1](hidden)
         partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
 
         if GEN_GRAPH:
@@ -78,7 +136,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
             if previous_block == 0:
                 # print("Cell inputs to current block: ", current_block)
-                tmp = self.cell_embedding_encoder(inputx) + self.weight_hidden2block[current_block](hidden)
+                tmp = self.cell_embedding_encoder(inputx) + self.h_weight_hidden2block[current_block](hidden)
                 partial_outputs[str(current_block)] = get_activation_function(
                     digit=activation_op,
                     inp=tmp
@@ -93,7 +151,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             else:
                 # print("Previous block to current block: ", previous_block, current_block)
                 previous_output = partial_outputs[str(previous_block)]  # Check if this indexing adds up
-                previous_output = self.weight_block2block[previous_block][current_block](previous_output)
+                previous_output = self.h_weight_block2block[previous_block][current_block](previous_output)
                 assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
                 # print("Activation: ", _get_activation_function_name(activation_op))
                 partial_outputs[str(current_block)] = get_activation_function(
@@ -144,33 +202,23 @@ class dlxDAGRNNModule(dlxRNNModelBase):
     def __init__(self, max_number_of_blocks):
         super(dlxDAGRNNModule, self).__init__()
 
-        self.max_number_of_blocks = max_number_of_blocks # Should include "0" as the first block
+        self.max_number_of_blocks = max_number_of_blocks  # Should include "0" as the first block
 
         # Used probably for every application
-        self.cell_embedding_module_encoder = nn.Linear(50, 8)  # 2 words in vocab, 5 dimensional embeddings
-        self.cell_embedding_module_decoder = nn.Linear(8, 50)
-
         self.word_embedding_module_encoder = torch.nn.Embedding(10000, 50)
         self.word_embedding_module_decoder = nn.Linear(50, 10000)
 
         # Spawn all weights here (as these weights will be shared)
-        self.weight_hidden2block, self.weight_block2block = generate_weights(8, num_blocks=self.max_number_of_blocks)
+        self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(input_size=50, hidden_size=8,
+                                                                                 num_blocks=self.max_number_of_blocks)
+        self.c_weight_hidden2block, self.c_weight_block2block = generate_weights(input_size=50, hidden_size=8,
+                                                                                 num_blocks=self.max_number_of_blocks)
 
-    def cell_embedding_encoder(self, inputx):
-        """
-            Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
-        :param X:
-        :return:
-        """
-        return self.cell_embedding_module_encoder(inputx)[None, :]
-
-    def cell_embedding_decoder(self, inputx):
-        """
-                    Pass a tensor through an embeddings, such that the shape is appropriate for the LSTM
-                :param X:
-                :return:
-                """
-        return self.cell_embedding_module_decoder(inputx)
+        # These weights are only for the very first block
+        self.w_input_to_c = nn.Linear(50, 8)
+        self.w_input_to_h = nn.Linear(50, 8)
+        self.w_previous_hidden_to_c = nn.Linear(8, 8)
+        self.w_previous_hidden_to_h = nn.Linear(8, 8)
 
     def word_embedding_encoder(self, inputx):
         return self.word_embedding_module_encoder(inputx)
