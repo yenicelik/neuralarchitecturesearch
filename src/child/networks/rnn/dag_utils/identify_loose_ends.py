@@ -10,7 +10,7 @@ def identify_loose_ends(dag, number_of_blocks):
     assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
 
     # First create a list of all blocks
-    all_blocks = np.arange(number_of_blocks+1) # We add + 1, because the blocks are not inclusive!
+    all_blocks = np.arange(number_of_blocks)
     used_blocks = [dag[i] for i in range(1, len(dag), 2)]
 
     # Loose blocks:

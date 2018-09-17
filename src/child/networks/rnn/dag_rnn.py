@@ -9,6 +9,7 @@ from torch import nn
 from torchviz import make_dot
 from torch.autograd import Variable
 
+from src._training.debug_utils.rnn_debug import load_dataset
 from src.child.networks.rnn.Base import dlxRNNModelBase
 from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 
@@ -16,6 +17,7 @@ from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
+import src.child.training.dag_train_wrapper
 
 
 class dlxDAGRNNModule(dlxRNNModelBase):
@@ -99,21 +101,17 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # The first operation is an activation function
         # print("Cell inputs to current block: ", 1)
 
-        #######
         def act_f(x):
             return get_activation_function(digit=dag[0], inp=x)
 
-        # TODO: Check out which weights to use
-        c = torch.nn.Sigmoid()()
-
-        c[0] = F.sigmoid(self.w_xc(x) + F.linear(h_prev, self.w_hc, None))
-        h[0] = (c[0] * f[0](self.w_xh(x) + F.linear(h_prev, self.w_hh, None)) +
-                (1 - c[0]) * h_prev)
+        # TODO: fix the indices
 
         #######
-
-        first_input = self.cell_embedding_encoder(inputx) + self.h_weight_hidden2block[1](hidden)
-        partial_outputs['1'] = get_activation_function(digit=dag[0], inp=first_input)
+        partial_outputs['0'] = self._connect_input(
+            inputx=inputx,
+            hidden=hidden,
+            act_fun=act_f
+        )
 
         if GEN_GRAPH:
             print(dag)
@@ -124,9 +122,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                            label=_get_activation_function_name(dag[0]))
 
         # Now apply the ongoing operations
-        for i in range(1,
-                       self.max_number_of_blocks):  # We start array-indexing with 1, because block 0 refers to the input!
-            current_block = i + 1
+        # We start array-indexing with 1, because block 0 refers to the input!
+        for i in range(1, self.max_number_of_blocks):
+            current_block = i
             previous_block = dag[2 * i - 1]
             activation_op = dag[2 * i]
 
@@ -134,34 +132,25 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                 print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ",
                       activation_op)
 
-            if previous_block == 0:
-                # print("Cell inputs to current block: ", current_block)
-                tmp = self.cell_embedding_encoder(inputx) + self.h_weight_hidden2block[current_block](hidden)
-                partial_outputs[str(current_block)] = get_activation_function(
-                    digit=activation_op,
-                    inp=tmp
-                )
-                # print("Activation: ", _get_activation_function_name(activation_op))
-                assert partial_outputs[str(current_block)].size() == tmp.size(), ("Not the case!")
+            def act_f(x):
+                return get_activation_function(digit=activation_op, inp=x)
 
-                if GEN_GRAPH:
-                    graph.add_edge("Block " + str(0), "Block " + str(current_block),
-                                   label=_get_activation_function_name(activation_op))
+            previous_output = partial_outputs[str(previous_block)]
+            partial_outputs[str(current_block)] = self._connect_block(
+                internal_hidden=previous_output,
+                i=previous_block,
+                j=current_block,
+                act_fun=act_f
+            )
 
-            else:
-                # print("Previous block to current block: ", previous_block, current_block)
-                previous_output = partial_outputs[str(previous_block)]  # Check if this indexing adds up
-                previous_output = self.h_weight_block2block[previous_block][current_block](previous_output)
-                assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
-                # print("Activation: ", _get_activation_function_name(activation_op))
-                partial_outputs[str(current_block)] = get_activation_function(
-                    digit=activation_op,
-                    inp=previous_output
-                )
+            print("Previous block to current block: ", previous_block, current_block)
 
-                if GEN_GRAPH:
-                    graph.add_edge("Block " + str(previous_block), "Block " + str(current_block),
-                                   label=_get_activation_function_name(activation_op))
+            assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
+            print("Activation: ", _get_activation_function_name(activation_op))
+
+            if GEN_GRAPH:
+                graph.add_edge("Block " + str(previous_block), "Block " + str(current_block),
+                    label=_get_activation_function_name(activation_op))
 
         # Identify the loose ends:
         loose_ends = identify_loose_ends(dag, self.max_number_of_blocks)
@@ -176,15 +165,15 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         averaged_output = torch.cat(outputs, 0)
 
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        hidden = torch.mean(averaged_output, dim=0)
-        logits = self.cell_embedding_decoder(hidden)
+        last_hidden = partial_outputs[str(self.max_number_of_blocks-1)]
+        output = torch.mean(averaged_output, dim=0)
 
         if GEN_GRAPH:
             print("Printing graph...")
             graph.layout(prog='dot')
             graph.draw('./tmp/cell_viz.png')
 
-        return logits, hidden
+        return output, last_hidden
 
     def cell(self, inputx, hidden):
         """
@@ -206,7 +195,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Used probably for every application
         self.word_embedding_module_encoder = torch.nn.Embedding(10000, 50)
-        self.word_embedding_module_decoder = nn.Linear(50, 10000)
+        self.word_embedding_module_decoder = nn.Linear(8, 10000)
 
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(input_size=50, hidden_size=8,
@@ -224,6 +213,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         return self.word_embedding_module_encoder(inputx)
 
     def word_embedding_decoder(self, inputx):
+        # Need to pass through softmax first
         return self.word_embedding_module_decoder(inputx)
 
     def forward(self, X):
@@ -235,8 +225,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         """
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
-        time_steps = X.size(0)
-        batch_size = X.size(1)
+        batch_size = X.size(0)
+        time_steps = X.size(1)
 
         outputs = []
 
@@ -255,7 +245,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
 
-        output = torch.cat(outputs, 0)
+        output = torch.cat(outputs, 1) # Concatenate along the time axis
         # Take argmax amongst last axis,
 
         return output
@@ -264,30 +254,56 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
 
-    "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-    "1   2   3   4   5   6   7   8   9   10  11  12 "
+    # "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    # "1   2   3   4   5   6   7   8   9   10  11  12 "
+    #
+    # # Example forward pass
+    # dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    # dag_list = [int(x) for x in dag_description.split()]
+    # print(dag_list)
+    #
+    # model = dlxDAGRNNModule(dag=dag_list)
+    #
+    # # Test running the cell only:
+    # # Has shape :: (BATCH, TIMESTEP, SIZE)
+    X = torch.randn((5, 4, 50))
+    # hidden = torch.randn((8,))
+    #
+    # # X = X[0, :]
+    # # print("X and hidden shapes are: ", X.size(), hidden.size())
+    # # logit, hidden = model.cell(X, hidden)
+    # # print("Logit and hidden have shapes: ", logit.size(), hidden.size())
+    #
+    # # Test running the entire forward pass
+    # model = dlxDAGRNNModule(dag=dag_list)
+    # Y_hat = model.forward(X)
+    # print(Y_hat.size())
+    #
+    # # for i in range(100):
+    # #     model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
+    child_model = dlxDAGRNNModule(12)
+    child_trainer = src.child.training.dag_train_wrapper.DAGTrainWrapper(child_model)
 
-    # Example forward pass
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]
-    print(dag_list)
 
-    model = dlxDAGRNNModule(dag=dag_list)
+    data, target = load_dataset(dev=True)
+    data = data[:20]
+    target = target[:20]
 
-    # Test running the cell only:
-    # Has shape :: (BATCH, TIMESTEP, SIZE)
-    X = torch.randn((5, 4, 50))
-    hidden = torch.randn((8,))
+    print("Whats the size of the data", data[:20].size())
+    # exit(0)
 
-    # X = X[0, :]
-    # print("X and hidden shapes are: ", X.size(), hidden.size())
-    # logit, hidden = model.cell(X, hidden)
-    # print("Logit and hidden have shapes: ", logit.size(), hidden.size())
+    X = data
+    Y = target
 
-    # Test running the entire forward pass
-    model = dlxDAGRNNModule(dag=dag_list)
-    Y_hat = model.forward(X)
-    print(Y_hat.size())
+    child_model.overwrite_dag(dag_list)
+    Y_hat = child_model.forward(X)
+    print("Y_hat size is: ", Y_hat.size())
+    print("Y size is: ", Y.size())
+    assert Y_hat.size(0) == X.size(0), ("Sizes dont conform: ", Y_hat.size(), X.size())
+    assert Y_hat.size(1) == X.size(1), ("Sizes dont conform: ", Y_hat.size(), X.size())
+    # self.child_trainer.train(self.X_train, self.Y_train)
 
-    # for i in range(100):
-    #     model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
+
+
