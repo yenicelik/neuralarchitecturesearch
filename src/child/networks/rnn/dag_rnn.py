@@ -11,12 +11,14 @@ from torch.autograd import Variable
 
 from src._training.debug_utils.rnn_debug import load_dataset
 from src.child.networks.rnn.Base import dlxRNNModelBase
+from src.child.networks.rnn.dropout_utils.variational_dropout import VariationalDropout
 from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 
 # Import all utils functions, as we're gonna need them
 from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
+from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
 
 from src.model_config import ARG
 
@@ -187,17 +189,28 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
         self.dag = new_dag
 
+    def set_train(self, is_train=True):
+        self.is_train = is_train
+
     def __init__(self,):
         super(dlxDAGRNNModule, self).__init__()
 
         # Used probably for every application
-        self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
+        # self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
+        self.word_embedding_module_encoder = EmbeddingDropout(
+            10000,
+            ARG.shared_embed,
+            dropout=ARG.shared_dropoute
+        )
         self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
 
-        # if ARG.shared_tie_weights:
-            # print("Tying weights!")
+        if ARG.shared_tie_weights:
+            print("Tying weights!")
             # Ties the weights, if this is possible
             # self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
+
+        # Spawn the variational dropout cell
+        self.var_dropout = VariationalDropout()
 
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
@@ -216,6 +229,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.w_input_to_h = nn.Linear(ARG.shared_embed, ARG.shared_hidden)
         self.w_previous_hidden_to_c = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
         self.w_previous_hidden_to_h = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
+
+        # Additional parameters
+        self.set_train(is_train=True)
 
     def word_embedding_encoder(self, inputx):
         return self.word_embedding_module_encoder(inputx)
@@ -240,16 +256,30 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # First input to cell
         current_X = X[:, 0]
-        current_X = self.word_embedding_encoder(current_X)
-        logit, hidden = self.cell(inputx=current_X, hidden=None)
+        embed = self.word_embedding_encoder(current_X)
+
+        # Apply dropout
+        if ARG.shared_dropouti > 0:
+            embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+
+        logit, hidden = self.cell(inputx=embed, hidden=None)
         logit = self.word_embedding_decoder(logit)
         outputs.append(logit)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
             current_X = X[:, i]
-            current_X = self.word_embedding_encoder(current_X)
-            logit, hidden = self.cell(inputx=current_X, hidden=hidden)
+            embed = self.word_embedding_encoder(current_X)
+
+            # Apply dropout
+            if ARG.shared_dropouti > 0:
+                embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+
+            logit, hidden = self.cell(inputx=embed, hidden=hidden)
+
+            if self.args.shared_dropout > 0:
+                logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
+
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
 

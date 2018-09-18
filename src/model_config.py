@@ -18,9 +18,9 @@ net_arg.add_argument('--num_blocks', type=int, default=12)
 
 # Shared parameters for the child controller
 # net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
-# net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
-# net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
-# net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
+net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
+net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
+net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
 
 # net_arg.add_argument('--shared_embed', type=int, default=1000) # TODO: 200, 500, 1000
 net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 1000
