@@ -8,6 +8,17 @@ class TrainWrapperBase:
     def __init__(self, model):
         pass
 
+    def predict(self, X, n=1):
+        """
+            Predicts the next n tokens for a given sequence X.
+            By default, it only predicts the very next token
+        :param X:
+        :param n:
+        :return:
+        """
+        raise NotImplementedError
+
+
     def train(self, X, Y):
         """
             Trains the model on a certain dataset.

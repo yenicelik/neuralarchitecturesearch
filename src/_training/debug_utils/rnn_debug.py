@@ -19,8 +19,8 @@ def load_dataset(dev=False):
     # data, target = meta_trainer._get_batch(batch, 10)
     # print(data.size())
     # print(target.size())
-    data = batch[:1000, 0:10, None]
-    target = batch[:1000, 1:11, None]
+    data = batch[:500, 0:10, None]
+    target = batch[:500, 1:11, None]
 
     return data, target
 

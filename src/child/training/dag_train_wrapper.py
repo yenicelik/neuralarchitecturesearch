@@ -2,6 +2,7 @@
     This is one example training wrapper which uses the interface given by the Base class.
     We will use the RNN cell as this provides the right interface for the NAS we will later implement
 """
+import numpy as np
 import torch
 from torch import nn
 from tensorboardX import SummaryWriter
@@ -10,7 +11,7 @@ from src.child.training.train_wrapper_base import TrainWrapperBase
 
 # Debug tools
 from src.preprocessor.text import Corpus, batchify
-corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
+# corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
 
 class DAGTrainWrapper(TrainWrapperBase):
 
@@ -31,6 +32,38 @@ class DAGTrainWrapper(TrainWrapperBase):
         self.optimizer = torch.optim.Adam(self.model.parameters()) # The .parameters is required, and automatically built-in into any torch model
 
         self.debug_tools()
+
+    def predict(self, X, n=1):
+        """
+            Predicts the next n elements given past X elements.
+
+                X.size() <- (total_data_size, time_length, **data_size )
+
+        :param X:
+        :param Y:
+        :return:
+        """
+
+        assert n==1, ("Cases where n>1 are not implemented yet!", n)
+
+        # Take the very last output from a "forward"
+        Y_hat = self.model.forward(X)
+        prediction = Y_hat[:, -1]
+        print("Predictions have size: ", prediction.size())
+
+        prediction_index = torch.argmax(prediction, dim=-1, keepdim=True)
+        print("Prediction index has size: ", prediction_index.size())
+
+        tmax, _ = torch.max(prediction, dim=-1, keepdim=True)
+        print(tmax)
+        print("Prediction and tmax shape: ", prediction.size(), tmax.size())
+        e_x = torch.sub(prediction, tmax)
+        class_probabilities = e_x / torch.sum(e_x, dim=-1, keepdim=True)
+
+        print("Summed probabilites are: (should be all 1)", torch.sum(class_probabilities, dim=-1))
+        print(class_probabilities.size())
+
+        return prediction_index, class_probabilities
 
     def train(self, X, Y):
         """
@@ -98,15 +131,21 @@ class DAGTrainWrapper(TrainWrapperBase):
 if __name__ == "__main__":
     print("Do a bunch of forward passes: ")
 
+    X = torch.LongTensor(401, 4, 1).random_(0, 10000)
+    print(X.size())
+
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]
     print(dag_list)
     import src.child.networks.rnn.dag_rnn as dag_rnn
 
     # model = dlxExampleRNNModule()
-    model = dag_rnn.dlxDAGRNNModule(dag=dag_list)
+    model = dag_rnn.dlxDAGRNNModule()
+    model.overwrite_dag(dag_list)
 
     trainer = DAGTrainWrapper(model)
     # Example forward pass
-    X = torch.randn((401, 4, 50))
-    trainer.train(X[:400,:], X[1:,:])
+    # X = torch.randint((401, 4, 50))
+    # trainer.train(X[:400,:], X[1:,:])
+
+    trainer.predict(X[:400, :])

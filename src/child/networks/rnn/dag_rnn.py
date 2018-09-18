@@ -17,8 +17,8 @@ from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
-import src.child.training.dag_train_wrapper
 
+from src.model_config import ARG
 
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
@@ -90,7 +90,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             import pygraphviz as pgv
             graph = pgv.AGraph(directed=True, strict=True,
                                fontname='Helvetica', arrowtype='open')  # not work?
-            for i in range(0, self.max_number_of_blocks + 1):
+            for i in range(0, ARG.num_blocks):
                 graph.add_node("Block " + str(i), color='black', shape='box', style='filled', fillcolor='pink')
 
         # print("Building cell")
@@ -123,7 +123,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Now apply the ongoing operations
         # We start array-indexing with 1, because block 0 refers to the input!
-        for i in range(1, self.max_number_of_blocks):
+        for i in range(1, ARG.num_blocks):
             current_block = i
             previous_block = dag[2 * i - 1]
             activation_op = dag[2 * i]
@@ -153,7 +153,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                     label=_get_activation_function_name(activation_op))
 
         # Identify the loose ends:
-        loose_ends = identify_loose_ends(dag, self.max_number_of_blocks)
+        loose_ends = identify_loose_ends(dag, ARG.num_blocks)
 
         # Return the average of all the loose ends
         outputs = []
@@ -165,7 +165,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         averaged_output = torch.cat(outputs, 0)
 
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        last_hidden = partial_outputs[str(self.max_number_of_blocks-1)]
+        last_hidden = partial_outputs[str(ARG.num_blocks-1)]
         output = torch.mean(averaged_output, dim=0)
 
         if GEN_GRAPH:
@@ -181,33 +181,37 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         if hidden is None:  # If hidden is none, then spawn a hidden cell
-            hidden = Variable(torch.randn((8,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
+            hidden = Variable(torch.randn((ARG.shared_hidden,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
         return self.build_cell(inputx, hidden, self.dag)
 
     def overwrite_dag(self, new_dag):
         assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
         self.dag = new_dag
 
-    def __init__(self, max_number_of_blocks):
+    def __init__(self,):
         super(dlxDAGRNNModule, self).__init__()
 
-        self.max_number_of_blocks = max_number_of_blocks  # Should include "0" as the first block
-
         # Used probably for every application
-        self.word_embedding_module_encoder = torch.nn.Embedding(10000, 50)
-        self.word_embedding_module_decoder = nn.Linear(8, 10000)
+        self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
+        self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
 
         # Spawn all weights here (as these weights will be shared)
-        self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(input_size=50, hidden_size=8,
-                                                                                 num_blocks=self.max_number_of_blocks)
-        self.c_weight_hidden2block, self.c_weight_block2block = generate_weights(input_size=50, hidden_size=8,
-                                                                                 num_blocks=self.max_number_of_blocks)
+        self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
+            input_size=ARG.shared_embed,
+            hidden_size=ARG.shared_hidden,
+            num_blocks=ARG.num_blocks
+        )
+        self.c_weight_hidden2block, self.c_weight_block2block = generate_weights(
+            input_size=ARG.shared_embed,
+            hidden_size=ARG.shared_hidden,
+            num_blocks=ARG.num_blocks
+        )
 
         # These weights are only for the very first block
-        self.w_input_to_c = nn.Linear(50, 8)
-        self.w_input_to_h = nn.Linear(50, 8)
-        self.w_previous_hidden_to_c = nn.Linear(8, 8)
-        self.w_previous_hidden_to_h = nn.Linear(8, 8)
+        self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden)
+        self.w_input_to_h = nn.Linear(ARG.shared_embed, ARG.shared_hidden)
+        self.w_previous_hidden_to_c = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
+        self.w_previous_hidden_to_h = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
 
     def word_embedding_encoder(self, inputx):
         return self.word_embedding_module_encoder(inputx)
@@ -252,6 +256,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
 
 if __name__ == "__main__":
+
+    import src.child.training.dag_train_wrapper
+
     print("Do a bunch of forward passes: ")
 
     # "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
@@ -281,15 +288,15 @@ if __name__ == "__main__":
     #
     # # for i in range(100):
     # #     model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
-    child_model = dlxDAGRNNModule(12)
+    child_model = dlxDAGRNNModule()
     child_trainer = src.child.training.dag_train_wrapper.DAGTrainWrapper(child_model)
 
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]
 
     data, target = load_dataset(dev=True)
-    data = data[:20]
-    target = target[:20]
+    data = data[:10]
+    target = target[:10]
 
     print("Whats the size of the data", data[:20].size())
     # exit(0)

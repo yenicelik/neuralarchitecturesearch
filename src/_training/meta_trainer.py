@@ -34,15 +34,30 @@ class MetaTrainer:
         self.Y_test = Y_test
 
         # Spawn one child model
-        self.child_model = dag_rnn.dlxDAGRNNModule(12)
+        self.child_model = dag_rnn.dlxDAGRNNModule()
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
+
+    def evaluate_child(self, X, Y, dag):
+        """
+            Evaluates the child model based on the perplexity measure
+        :param dag:
+        :return:
+        """
+
+        # 1st. Predict the work probabilities (take the softmax)
+        self.child_model.overwrite_dag(dag)
+
+
+        # assert Y_hat.size() == Y.size(), ("Something with the sizes don't math up!", Y_hat.size(), Y.size())
+        #
+        # print("Y_hat size is: ", Y_hat.size())
 
     def train_child(self, dag):
         # This should be replaced by batch getters
         # Spawn child trainer and model
         self.child_model.overwrite_dag(dag)
 
-        # Prepare the sequence data (to be shifter by one on the time-axis)
+        # Prepare the sequence data (to be shifted by one on the time-axis)
         self.child_trainer.train(self.X_train, self.Y_train)
 
     def get_child_validation_loss(self):
@@ -79,7 +94,11 @@ if __name__ == "__main__":
         Y_test=target
     )
 
-    meta_trainer.train_controller_and_child()
+    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    dag_list = [int(x) for x in dag_description.split()]
+
+    # meta_trainer.train_controller_and_child()
+    meta_trainer.evaluate_child(data, target, dag_list)
 
     # As a test, run the train_child function with the batchloader)
 
