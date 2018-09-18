@@ -28,6 +28,8 @@ net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 
 net_arg.add_argument('--shared_hidden', type=int, default=100)
 net_arg.add_argument('--shared_rnn_max_length', type=int, default=35)
 
+net_arg.add_argument('--shared_tie_weights', type=int, default=1, help="Non-zero value means we tie the weights")
+net_arg.add_argument('--shared_grad_clip', type=float, default=0.25)
 
 # TRAINING / TEST
 learn_arg = add_argument_group('Learning')

@@ -15,6 +15,7 @@ from torch import nn
 from tensorboardX import SummaryWriter
 
 from src.child.training.train_wrapper_base import TrainWrapperBase
+from src.model_config import ARG
 
 # Debug tools
 from src.preprocessor.text import Corpus, batchify
@@ -30,13 +31,23 @@ class DAGTrainWrapper(TrainWrapperBase):
         # Debugging tools
         self.writer = SummaryWriter(log_dir="/Users/david/neuralarchitecturesearch/tmp/runs/")
 
+    def update_lr(self, lr):
+        # Takes the optimizer, and the initial learning rate
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+            print(param_group['lr'])
+
     def __init__(self, model):
         super(TrainWrapperBase, self).__init__()
 
         self.model = model
 
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.model.parameters()) # The .parameters is required, and automatically built-in into any torch model
+        self.optimizer = torch.optim.SGD(
+            params=self.model.parameters(),
+            lr=ARG.shared_lr,
+            weight_decay=ARG.shared_l2_reg
+        ) # The .parameters is required, and automatically built-in into any torch model
 
         self.debug_tools()
 
@@ -104,6 +115,8 @@ class DAGTrainWrapper(TrainWrapperBase):
             X.size() <- (total_data_size, time_length, **data_size )
 
             --> Watch out! There should be a cutoff and padding amongst batches!
+            --> The total data doesn't have to be the entire data, but can be just
+                the data size can be chosen
 
         :param X: The data
         :param Y: The shape
@@ -113,17 +126,17 @@ class DAGTrainWrapper(TrainWrapperBase):
         assert X.size() == Y.size(), ("Not same size! (X, Y) :: ", X.size(), Y.size())
 
         data_size = X.size(0)
-        batch_size = 10
-        losses = torch.empty(data_size//batch_size)
+        losses = torch.empty(data_size//ARG.batch_size)
 
         # Do exactly one epoch
-        for train_idx in range(0, data_size, batch_size):
+        for train_idx in range(0, data_size, ARG.batch_size):
 
-            if train_idx + batch_size > data_size:
+            if train_idx + ARG.batch_size > data_size:
                 break
 
-            X_cur = X[train_idx:train_idx+batch_size, :]
-            Y_cur = Y[train_idx:train_idx+batch_size, :]
+            X_cur = X[train_idx:train_idx+ARG.batch_size, :]
+            Y_cur = Y[train_idx:train_idx+ARG.batch_size, :]
+
             # print_batches(X_cur, Y_cur)
             # exit(0)
             # X_cur = X_cur.transpose(0, 1)
@@ -145,9 +158,12 @@ class DAGTrainWrapper(TrainWrapperBase):
             loss = self.criterion(Y_hat, Y_cur)
             # print("Loss: ", loss)
             loss.backward()
+
+            # Clip gradients here
+            torch.nn.utils.clip_grad_norm(self.model.parameters(), ARG.shared_grad_clip)
             self.optimizer.step()
 
-            losses[train_idx//batch_size] = loss
+            losses[train_idx//ARG.batch_size] = loss
 
             self.writer.add_scalar('loss/train_loss', loss, train_idx)
 
@@ -159,7 +175,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         sys.stdout.write("\n")
 
-        losses = losses / (data_size // batch_size)
+        losses = losses / (data_size // ARG.batch_size)
 
         print(losses)
 

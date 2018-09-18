@@ -194,6 +194,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
         self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
 
+        # if ARG.shared_tie_weights:
+            # print("Tying weights!")
+            # Ties the weights, if this is possible
+            # self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
+
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
             input_size=ARG.shared_embed,

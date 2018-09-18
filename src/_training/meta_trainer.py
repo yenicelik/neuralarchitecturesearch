@@ -10,6 +10,7 @@ from torch.autograd import Variable
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
+from src.model_config import ARG
 
 
 class MetaTrainer:
@@ -51,23 +52,39 @@ class MetaTrainer:
         loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
         print("Validation loss: ", loss)
 
-        for current_epoch in range(10):
+        for current_epoch in range(ARG.max_epoch):
+
             dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
             dag_list = [int(x) for x in dag_description.split()]
 
             self.child_model.overwrite_dag(dag_list)
-            print("Training model...")
-            self.child_trainer.train(self.X_train, self.Y_train)
+
+            for minibatch_offset in range(0, self.X_train.size(1), ARG.shared_max_step):
+                X_minibatch = self.X_train[
+                                  minibatch_offset:
+                                  minibatch_offset+ARG.shared_max_step
+                              ]
+                Y_minibatch = self.Y_train[
+                                  minibatch_offset:
+                                  minibatch_offset + ARG.shared_max_step
+                              ]
+
+                print("Training model...")
+                self.child_trainer.train(X_minibatch, Y_minibatch)
 
             loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
             print("Validation loss: ", loss)
 
+            if current_epoch > ARG.shared_decay_after:
+                new_lr = ARG.shared_lr * ( ARG.shared_decay**(current_epoch-ARG.shared_decay_after) )
+                print("Updating learning rate to ", new_lr)
+                self.child_trainer.update_lr(new_lr)
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
     # meta_trainer.train()
 
-    train_off = 1000
+    train_off = 600
 
     data, target = load_dataset(dev=True, dev_size=1500)
     X_train = data[:train_off]
