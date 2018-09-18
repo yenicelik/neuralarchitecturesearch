@@ -18,6 +18,16 @@ class TrainWrapperBase:
         """
         raise NotImplementedError
 
+    def loss(self, X, Y):
+        """
+            Calculates the loss, which will be fed into
+            the controller as a reward
+        :param X:
+        :param Y:
+        :return:
+        """
+        raise NotImplementedError
+
 
     def train(self, X, Y):
         """

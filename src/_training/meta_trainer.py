@@ -37,21 +37,6 @@ class MetaTrainer:
         self.child_model = dag_rnn.dlxDAGRNNModule()
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 
-    def evaluate_child(self, X, Y, dag):
-        """
-            Evaluates the child model based on the perplexity measure
-        :param dag:
-        :return:
-        """
-
-        # 1st. Predict the work probabilities (take the softmax)
-        self.child_model.overwrite_dag(dag)
-
-
-        # assert Y_hat.size() == Y.size(), ("Something with the sizes don't math up!", Y_hat.size(), Y.size())
-        #
-        # print("Y_hat size is: ", Y_hat.size())
-
     def train_child(self, dag):
         # This should be replaced by batch getters
         # Spawn child trainer and model
@@ -71,7 +56,7 @@ class MetaTrainer:
             dag_list = [int(x) for x in dag_description.split()]
             self.train_child(dag_list)
 
-            loss = self.get_child_validation_loss()
+            loss = self.child_trainer.get_loss()
             print("Loss: ", loss)
 
 

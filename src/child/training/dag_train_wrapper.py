@@ -56,14 +56,38 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         tmax, _ = torch.max(prediction, dim=-1, keepdim=True)
         print(tmax)
-        print("Prediction and tmax shape: ", prediction.size(), tmax.size())
+        # print("Prediction and tmax shape: ", prediction.size(), tmax.size())
         e_x = torch.sub(prediction, tmax)
         class_probabilities = e_x / torch.sum(e_x, dim=-1, keepdim=True)
 
-        print("Summed probabilites are: (should be all 1)", torch.sum(class_probabilities, dim=-1))
+        # print("Summed probabilites are: (should be all 1)", torch.sum(class_probabilities, dim=-1))
         print(class_probabilities.size())
 
         return prediction_index, class_probabilities
+
+    def get_loss(self, X, Y):
+        """
+            Calculates the perplexity for the given X and Y's.
+        :param X:
+        :param Y:
+        :return:
+        """
+        Y_hat = self.model.forward(X)
+        # Take argmax because classification
+        # print("Output from model rnn is: ", Y_hat.size())
+        # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
+        Y_hat = Y_hat.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+        Y_hat = Y_hat.transpose(2, -1)
+
+        Y = Y.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+        Y = Y.transpose(2, -1)
+        print("Shape of real Y and found Y: ", Y_hat.size(), Y.size())
+        Y = Y.squeeze()
+        # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
+        # print("Input types are: ", Y_hat.type(), Y_cur.type())
+        loss = self.criterion(Y_hat, Y)
+
+        return torch.exp(loss)
 
     def train(self, X, Y):
         """
