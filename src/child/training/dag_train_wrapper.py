@@ -4,6 +4,13 @@
 """
 import numpy as np
 import torch
+import sys
+toolbar_width = 40
+# setup toolbar
+sys.stdout.write("[%s]" % (" " * toolbar_width))
+sys.stdout.flush()
+sys.stdout.write("\b" * (toolbar_width+1))
+
 from torch import nn
 from tensorboardX import SummaryWriter
 
@@ -106,17 +113,17 @@ class DAGTrainWrapper(TrainWrapperBase):
         assert X.size() == Y.size(), ("Not same size! (X, Y) :: ", X.size(), Y.size())
 
         data_size = X.size(0)
-        timestep_length = 10
-        losses = torch.empty(data_size//timestep_length)
+        batch_size = 10
+        losses = torch.empty(data_size//batch_size)
 
         # Do exactly one epoch
-        for train_idx in range(0, data_size, timestep_length):
+        for train_idx in range(0, data_size, batch_size):
 
-            if train_idx + timestep_length > data_size:
+            if train_idx + batch_size > data_size:
                 break
 
-            X_cur = X[train_idx:train_idx+timestep_length, :]
-            Y_cur = Y[train_idx:train_idx+timestep_length, :]
+            X_cur = X[train_idx:train_idx+batch_size, :]
+            Y_cur = Y[train_idx:train_idx+batch_size, :]
             # print_batches(X_cur, Y_cur)
             # exit(0)
             # X_cur = X_cur.transpose(0, 1)
@@ -140,14 +147,19 @@ class DAGTrainWrapper(TrainWrapperBase):
             loss.backward()
             self.optimizer.step()
 
-            losses[train_idx//timestep_length] = loss
+            losses[train_idx//batch_size] = loss
 
             self.writer.add_scalar('loss/train_loss', loss, train_idx)
 
             if train_idx % 100 == 0: # Export the tensorboard representation
                 self.writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
 
-        losses = losses / (data_size // timestep_length)
+            sys.stdout.write("-")
+            sys.stdout.flush()
+
+        sys.stdout.write("\n")
+
+        losses = losses / (data_size // batch_size)
 
         print(losses)
 

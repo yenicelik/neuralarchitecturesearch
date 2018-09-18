@@ -11,7 +11,7 @@ print(corpus.test)
 def to_word(x):
     return corpus.dictionary.idx2word[x]
 
-def load_dataset(dev=False):
+def load_dataset(dev=False, dev_size=500):
     batch = batchify(corpus.train, 11, use_cuda=False)
     print(batch)
     print(batch.size())
@@ -19,8 +19,8 @@ def load_dataset(dev=False):
     # data, target = meta_trainer._get_batch(batch, 10)
     # print(data.size())
     # print(target.size())
-    data = batch[:500, 0:10, None]
-    target = batch[:500, 1:11, None]
+    data = batch[:dev_size, 0:10, None]
+    target = batch[:dev_size, 1:11, None]
 
     return data, target
 

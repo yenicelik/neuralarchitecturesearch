@@ -43,6 +43,14 @@ class MetaTrainer:
 
     def train_controller_and_child(self):
         # Setting up the trainers
+        dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+        dag_list = [int(x) for x in dag_description.split()]
+
+        self.child_model.overwrite_dag(dag_list)
+
+        loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+        print("Validation loss: ", loss)
+
         for current_epoch in range(10):
             dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
             dag_list = [int(x) for x in dag_description.split()]
@@ -52,24 +60,31 @@ class MetaTrainer:
             self.child_trainer.train(self.X_train, self.Y_train)
 
             loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-            print("Loss: ", loss)
+            print("Validation loss: ", loss)
 
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
     # meta_trainer.train()
 
-    data, target = load_dataset(dev=True)
+    train_off = 1000
+
+    data, target = load_dataset(dev=True, dev_size=1500)
+    X_train = data[:train_off]
+    Y_train = data[:train_off]
+    X_val = data[train_off:]
+    Y_val = data[train_off:]
+
 
     # print_batches(data, target)
 
     # print("Input to the meta trainer is: ", data.size(), target.size())
 
     meta_trainer = MetaTrainer(
-        X_train=data,
-        Y_train=target,
-        X_val=data,
-        Y_val=target,
+        X_train=X_train,
+        Y_train=Y_train,
+        X_val=X_val,
+        Y_val=Y_val,
         X_test=data,
         Y_test=target
     )
