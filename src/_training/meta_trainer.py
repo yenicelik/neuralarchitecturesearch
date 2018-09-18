@@ -37,14 +37,6 @@ class MetaTrainer:
         self.child_model = dag_rnn.dlxDAGRNNModule()
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 
-    def train_child(self, dag):
-        # This should be replaced by batch getters
-        # Spawn child trainer and model
-        self.child_model.overwrite_dag(dag)
-
-        # Prepare the sequence data (to be shifted by one on the time-axis)
-        self.child_trainer.train(self.X_train, self.Y_train)
-
     def get_child_validation_loss(self):
         # TODO: Implement
         return random.random()
@@ -54,9 +46,12 @@ class MetaTrainer:
         for current_epoch in range(10):
             dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
             dag_list = [int(x) for x in dag_description.split()]
-            self.train_child(dag_list)
 
-            loss = self.child_trainer.get_loss()
+            self.child_model.overwrite_dag(dag_list)
+            print("Training model...")
+            self.child_trainer.train(self.X_train, self.Y_train)
+
+            loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
             print("Loss: ", loss)
 
 
@@ -83,7 +78,7 @@ if __name__ == "__main__":
     dag_list = [int(x) for x in dag_description.split()]
 
     # meta_trainer.train_controller_and_child()
-    meta_trainer.evaluate_child(data, target, dag_list)
+    meta_trainer.train_controller_and_child()
 
     # As a test, run the train_child function with the batchloader)
 

@@ -129,8 +129,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             activation_op = dag[2 * i]
 
             if GEN_GRAPH:
-                print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ",
-                      activation_op)
+                print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ", activation_op)
 
             def act_f(x):
                 return get_activation_function(digit=activation_op, inp=x)
@@ -143,10 +142,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                 act_fun=act_f
             )
 
-            print("Previous block to current block: ", previous_block, current_block)
+            # print("Previous block to current block: ", previous_block, current_block)
 
             assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
-            print("Activation: ", _get_activation_function_name(activation_op))
+            # print("Activation: ", _get_activation_function_name(activation_op))
 
             if GEN_GRAPH:
                 graph.add_edge("Block " + str(previous_block), "Block " + str(current_block),

@@ -81,13 +81,13 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         Y = Y.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
         Y = Y.transpose(2, -1)
-        print("Shape of real Y and found Y: ", Y_hat.size(), Y.size())
+        # print("Shape of real Y and found Y: ", Y_hat.size(), Y.size())
         Y = Y.squeeze()
         # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
         # print("Input types are: ", Y_hat.type(), Y_cur.type())
         loss = self.criterion(Y_hat, Y)
 
-        return torch.exp(loss)
+        return torch.exp(loss) / Y_hat.size(0) # Gotta normalize the loss
 
     def train(self, X, Y):
         """
@@ -131,7 +131,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
             Y_cur = Y_cur.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_cur = Y_cur.transpose(2, -1)
-            print("Shape of real Y and found Y: ", Y_hat.size(), Y_cur.size())
+            # print("Shape of real Y and found Y: ", Y_hat.size(), Y_cur.size())
             Y_cur = Y_cur.squeeze()
             # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
             # print("Input types are: ", Y_hat.type(), Y_cur.type())
