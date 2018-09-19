@@ -90,6 +90,7 @@ class DAGTrainWrapper(TrainWrapperBase):
         :param Y:
         :return:
         """
+        self.model.set_train(is_train=False)
         Y_hat = self.model.forward(X)
         # Take argmax because classification
         # print("Output from model rnn is: ", Y_hat.size())
@@ -122,6 +123,8 @@ class DAGTrainWrapper(TrainWrapperBase):
         :param Y: The shape
         :return:
         """
+
+        self.model.set_train(is_train=True)
 
         assert X.size() == Y.size(), ("Not same size! (X, Y) :: ", X.size(), Y.size())
 

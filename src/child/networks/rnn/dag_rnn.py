@@ -46,11 +46,23 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Calculate the c's
         c_t1 = self.w_input_to_c(inputx)
         c_t2 = self.w_previous_hidden_to_c(hidden)
+
+        # Apply dropout if training
+        if ARG.shared_wdrop > 0:
+            c_t1 = self.w_dropout(c_t1)
+            c_t2 = self.w_dropout(c_t2)
+
         tmp = c_t1 + c_t2
         c = torch.nn.Sigmoid()(tmp)
 
         h_t1 = self.w_input_to_h(inputx)
         h_t2 = self.w_previous_hidden_to_h(hidden)
+
+        # Apply dropout if training
+        if ARG.shared_wdrop > 0:
+            h_t1 = self.w_dropout(h_t1)
+            h_t2 = self.w_dropout(h_t2)
+
         tmp =  h_t1 + h_t2
         tmp = act_fun(tmp)
 
@@ -72,11 +84,21 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         """
         # Calculate the c's
         tmp = self.c_weight_block2block[i][j](internal_hidden)
+
+        # Apply dropout if training
+        if ARG.shared_wdrop > 0:
+            tmp = self.w_dropout(tmp)
+
         c = torch.nn.Sigmoid()(tmp)
 
         # Calculate the hidden block output
         tmp = self.h_weight_block2block[i][j](internal_hidden)
         tmp = act_fun(tmp)
+
+        # Apply dropout if training
+        if ARG.shared_wdrop > 0:
+            tmp = self.w_dropout(tmp)
+
         t1 = torch.mul(c, tmp)
         t2 = torch.mul(1.-c, internal_hidden)
 
@@ -195,6 +217,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
     def set_train(self, is_train=True):
         self.is_train = is_train
+        if is_train:
+            self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
+        else:
+            self.w_dropout = torch.nn.Dropout(0)
 
     def __init__(self,):
         super(dlxDAGRNNModule, self).__init__()
@@ -215,7 +241,6 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Spawn the variational dropout cell
         self.var_dropout = VariationalDropout()
-        self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
 
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(

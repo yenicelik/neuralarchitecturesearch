@@ -17,7 +17,7 @@ net_arg = add_argument_group('Network')
 net_arg.add_argument('--num_blocks', type=int, default=12)
 
 # Shared parameters for the child controller
-# net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
+net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
 net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
 net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
 net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
