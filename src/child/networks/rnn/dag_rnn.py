@@ -53,7 +53,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             c_t2 = self.w_dropout(c_t2)
 
         tmp = c_t1 + c_t2
-        c = torch.nn.Sigmoid()(tmp)
+        c = self.sigmoid(tmp)
 
         h_t1 = self.w_input_to_h(inputx)
         h_t2 = self.w_previous_hidden_to_h(hidden)
@@ -89,7 +89,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         if ARG.shared_wdrop > 0:
             tmp = self.w_dropout(tmp)
 
-        c = torch.nn.Sigmoid()(tmp)
+        c = self.sigmoid(tmp)
 
         # Calculate the hidden block output
         tmp = self.h_weight_block2block[i][j](internal_hidden)
@@ -241,6 +241,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Spawn the variational dropout cell
         self.var_dropout = VariationalDropout()
+        self.sigmoid = torch.nn.Sigmoid()
 
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
