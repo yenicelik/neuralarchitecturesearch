@@ -235,9 +235,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
 
         if ARG.shared_tie_weights:
-            print("Tying weights!")
             # Ties the weights, if this is possible
-            # self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
+            print("Tying weights!")
+            assert ARG.shared_embed == ARG.shared_hidden, ("Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
+            self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
         # Spawn the variational dropout cell
         self.var_dropout = VariationalDropout()
