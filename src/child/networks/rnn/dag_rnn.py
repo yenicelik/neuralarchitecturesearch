@@ -200,6 +200,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         last_hidden = partial_outputs[str(ARG.num_blocks-1)]
         output = torch.mean(averaged_output, dim=0)
 
+        if self.batch_norm is not None:
+            output = output.transpose(-1, -2)
+            output = self.batch_norm(output)
+            output = output.transpose(-1, -2)
+
         if GEN_GRAPH:
             print("Printing graph...")
             graph.layout(prog='dot')
@@ -222,10 +227,24 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
     def set_train(self, is_train=True):
         self.is_train = is_train
+
+        # Set pytorch specific train and eval function
+        if is_train:
+            self.train()
+        else:
+            self.eval()
+
+        # Apply dropout
         if is_train:
             self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
         else:
             self.w_dropout = torch.nn.Dropout(0)
+
+        # Apply BatchNorm
+        if is_train:
+            self.batch_norm = nn.BatchNorm1d(ARG.shared_hidden)
+        else:
+            self.batch_norm = None
 
     def __init__(self,):
         super(dlxDAGRNNModule, self).__init__()
@@ -271,10 +290,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.set_train(is_train=True)
         self._reset_parameters()
 
-        print("Printing all parameters from this model: ", self.parameters())
-        print(self.h_weight_block2block[0][2].weight)
-        print(torch.sum(self.h_weight_block2block[0][2].weight))
-        exit(0)
+        # print("Printing all parameters from this model: ", self.parameters())
+        # print(self.h_weight_block2block[0][2].weight)
+        # print(torch.sum(self.h_weight_block2block[0][2].weight))
+        # exit(0)
 
     def word_embedding_encoder(self, inputx):
         return self.word_embedding_module_encoder(inputx)
