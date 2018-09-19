@@ -277,7 +277,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
             logit, hidden = self.cell(inputx=embed, hidden=hidden)
 
-            if self.args.shared_dropout > 0:
+            if ARG.shared_dropout > 0:
                 logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
 
             logit = self.word_embedding_decoder(logit)
