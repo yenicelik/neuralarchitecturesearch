@@ -200,7 +200,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         last_hidden = partial_outputs[str(ARG.num_blocks-1)]
         output = torch.mean(averaged_output, dim=0)
 
-        if self.batch_norm is not None:
+        if self.batch_norm is not None and ARG.use_batch_norm:
             output = output.transpose(-1, -2)
             output = self.batch_norm(output)
             output = output.transpose(-1, -2)

@@ -51,6 +51,7 @@ learn_arg.add_argument('--shared_decay_after', type=float, default=15)
 learn_arg.add_argument('--shared_l2_reg', type=float, default=1e-7)
 learn_arg.add_argument('--shared_init_weight_range_train', type=float, default=0.025)
 learn_arg.add_argument('--shared_init_weight_range_real_train', type=float, default=0.025)
+learn_arg.add_argument('--use_batch_norm', type=int, default=1, help="Whether or not to use batchnorm right after averaging outputs")
 
 # Deriving architectures
 learn_arg.add_argument('--derive_num_sample', type=int, default=100)
