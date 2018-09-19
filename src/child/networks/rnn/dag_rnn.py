@@ -104,6 +104,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         return t1 + t2
 
+    def _reset_parameters(self):
+        init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
+        for param in self.parameters():
+            param.data.uniform_(-init_range, init_range)
+
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
             This function will be used as the cell right away, as pytorch has a dynamical computation graph
@@ -264,6 +269,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Additional parameters
         self.set_train(is_train=True)
+        self._reset_parameters()
+
+        print("Printing all parameters from this model: ", self.parameters())
+        print(self.h_weight_block2block[0][2].weight)
+        print(torch.sum(self.h_weight_block2block[0][2].weight))
+        exit(0)
 
     def word_embedding_encoder(self, inputx):
         return self.word_embedding_module_encoder(inputx)
