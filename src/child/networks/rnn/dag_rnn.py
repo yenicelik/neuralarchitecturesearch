@@ -22,6 +22,7 @@ from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDrop
 
 from src.model_config import ARG
 
+
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
         We don't need a backward pass, as this is implicitly computed by the forward pass
@@ -63,12 +64,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             h_t1 = self.w_dropout(h_t1)
             h_t2 = self.w_dropout(h_t2)
 
-        tmp =  h_t1 + h_t2
+        tmp = h_t1 + h_t2
         tmp = act_fun(tmp)
 
         # Calculate the hidden block output
         t1 = torch.mul(c, tmp)
-        t2 = torch.mul(1.-c, hidden)
+        t2 = torch.mul(1. - c, hidden)
         return t1 + t2
 
     def _connect_block(self, internal_hidden, i, j, act_fun):
@@ -100,7 +101,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             tmp = self.w_dropout(tmp)
 
         t1 = torch.mul(c, tmp)
-        t2 = torch.mul(1.-c, internal_hidden)
+        t2 = torch.mul(1. - c, internal_hidden)
 
         return t1 + t2
 
@@ -109,7 +110,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
         for param in self.parameters():
             param.data.uniform_(-init_range, init_range)
-            print(param.data)
+            print(param.name, param.data)
 
         # Reset parameters for the arrays
 
@@ -129,16 +130,14 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         # Registering the parameters as variables
         self._h_weight_block2block = nn.ModuleList([self.h_weight_block2block[idx][jdx]
-                                   for idx in self.h_weight_block2block
-                                   for jdx in self.h_weight_block2block[idx]])
+                                                    for idx in self.h_weight_block2block
+                                                    for jdx in self.h_weight_block2block[idx]])
         self._c_weight_block2block = nn.ModuleList([self.c_weight_block2block[idx][jdx]
-                                   for idx in self.c_weight_block2block
-                                   for jdx in self.c_weight_block2block[idx]])
+                                                    for idx in self.c_weight_block2block
+                                                    for jdx in self.c_weight_block2block[idx]])
 
         self._h_weight_hidden2block = torch.nn.Parameter(self.h_weight_hidden2block.weight)
         self._c_weight_hidden2block = torch.nn.Parameter(self.c_weight_hidden2block.weight)
-
-        # Registering the parameters as variables
 
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
@@ -193,7 +192,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             activation_op = dag[2 * i]
 
             if GEN_GRAPH:
-                print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ", activation_op)
+                print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ",
+                      activation_op)
 
             def act_f(x):
                 return get_activation_function(digit=activation_op, inp=x)
@@ -213,7 +213,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
             if GEN_GRAPH:
                 graph.add_edge("Block " + str(previous_block), "Block " + str(current_block),
-                    label=_get_activation_function_name(activation_op))
+                               label=_get_activation_function_name(activation_op))
 
         # Identify the loose ends:
         loose_ends = identify_loose_ends(dag, ARG.num_blocks)
@@ -228,7 +228,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         averaged_output = torch.cat(outputs, 0)
 
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        last_hidden = partial_outputs[str(ARG.num_blocks-1)]
+        last_hidden = partial_outputs[str(ARG.num_blocks - 1)]
         output = torch.mean(averaged_output, dim=0)
 
         if self.batch_norm is not None and ARG.use_batch_norm:
@@ -277,7 +277,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         else:
             self.batch_norm = None
 
-    def __init__(self,):
+    def __init__(self, ):
         super(dlxDAGRNNModule, self).__init__()
 
         # Used probably for every application
@@ -292,7 +292,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         if ARG.shared_tie_weights:
             # Ties the weights, if this is possible
             print("Tying weights!")
-            assert ARG.shared_embed == ARG.shared_hidden, ("Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
+            assert ARG.shared_embed == ARG.shared_hidden, (
+            "Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
         # Spawn the variational dropout cell
@@ -366,14 +367,13 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
 
-        output = torch.cat(outputs, 1) # Concatenate along the time axis
+        output = torch.cat(outputs, 1)  # Concatenate along the time axis
         # Take argmax amongst last axis,
 
         return output
 
 
 if __name__ == "__main__":
-
     import src.child.training.dag_train_wrapper
 
     print("Do a bunch of forward passes: ")
@@ -428,6 +428,3 @@ if __name__ == "__main__":
     assert Y_hat.size(0) == X.size(0), ("Sizes dont conform: ", Y_hat.size(), X.size())
     assert Y_hat.size(1) == X.size(1), ("Sizes dont conform: ", Y_hat.size(), X.size())
     # self.child_trainer.train(self.X_train, self.Y_train)
-
-
-
