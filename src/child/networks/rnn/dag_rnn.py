@@ -105,9 +105,40 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         return t1 + t2
 
     def _reset_parameters(self):
+        print("Resetting parameters to correct weights")
         init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
         for param in self.parameters():
             param.data.uniform_(-init_range, init_range)
+            print(param.data)
+
+        # Reset parameters for the arrays
+
+    def _generate_block_weights(self):
+
+        # Spawn all weights here (as these weights will be shared)
+        self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
+            input_size=ARG.shared_embed,
+            hidden_size=ARG.shared_hidden,
+            num_blocks=ARG.num_blocks
+        )
+        self.c_weight_hidden2block, self.c_weight_block2block = generate_weights(
+            input_size=ARG.shared_embed,
+            hidden_size=ARG.shared_hidden,
+            num_blocks=ARG.num_blocks
+        )
+
+        # Registering the parameters as variables
+        self._h_weight_block2block = nn.ModuleList([self.h_weight_block2block[idx][jdx]
+                                   for idx in self.h_weight_block2block
+                                   for jdx in self.h_weight_block2block[idx]])
+        self._c_weight_block2block = nn.ModuleList([self.c_weight_block2block[idx][jdx]
+                                   for idx in self.c_weight_block2block
+                                   for jdx in self.c_weight_block2block[idx]])
+
+        self._h_weight_hidden2block = torch.nn.Parameter(self.h_weight_hidden2block.weight)
+        self._c_weight_hidden2block = torch.nn.Parameter(self.c_weight_hidden2block.weight)
+
+        # Registering the parameters as variables
 
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
@@ -268,17 +299,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self.var_dropout = VariationalDropout()
         self.sigmoid = torch.nn.Sigmoid()
 
-        # Spawn all weights here (as these weights will be shared)
-        self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
-            input_size=ARG.shared_embed,
-            hidden_size=ARG.shared_hidden,
-            num_blocks=ARG.num_blocks
-        )
-        self.c_weight_hidden2block, self.c_weight_block2block = generate_weights(
-            input_size=ARG.shared_embed,
-            hidden_size=ARG.shared_hidden,
-            num_blocks=ARG.num_blocks
-        )
+        self._generate_block_weights()
 
         # These weights are only for the very first block
         self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden)

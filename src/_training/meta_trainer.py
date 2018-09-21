@@ -12,6 +12,8 @@ import src.child.training.dag_train_wrapper as dag_train_wrapper
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 from src.model_config import ARG
 
+from src.utils.debug_utils.tensorboard_tools import tx_writer
+
 
 class MetaTrainer:
 
@@ -54,12 +56,14 @@ class MetaTrainer:
 
         for current_epoch in range(ARG.max_epoch):
 
-            dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-            dag_list = [int(x) for x in dag_description.split()]
-
-            self.child_model.overwrite_dag(dag_list)
-
+            # TODO: Do we create a new model for every epoch, or for each "max steps"?
             for minibatch_offset in range(0, self.X_train.size(1), ARG.shared_max_step):
+
+                dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+                dag_list = [int(x) for x in dag_description.split()]
+
+                self.child_model.overwrite_dag(dag_list)
+
                 X_minibatch = self.X_train[
                                   minibatch_offset:
                                   minibatch_offset+ARG.shared_max_step
@@ -69,11 +73,16 @@ class MetaTrainer:
                                   minibatch_offset + ARG.shared_max_step
                               ]
 
-                print("Training model...")
-                self.child_trainer.train(X_minibatch, Y_minibatch)
+                self.child_trainer.train(
+                    X=X_minibatch,
+                    Y=Y_minibatch
+                )
 
-            loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-            print("Validation loss: ", loss)
+                loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+                print("Validation loss: ", loss[0])
+
+                eval_idx = minibatch_offset // ARG.shared_max_step
+                tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
 
             if current_epoch > ARG.shared_decay_after:
                 new_lr = ARG.shared_lr * ( ARG.shared_decay**(current_epoch-ARG.shared_decay_after) )

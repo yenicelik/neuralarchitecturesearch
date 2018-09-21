@@ -39,7 +39,6 @@ def generate_weights(input_size, hidden_size, num_blocks):
 
     return hidde2firstblock, block2block
 
-
 if __name__ == "__main__":
     print("Starting to generate the connections...")
 

@@ -21,15 +21,9 @@ from src.model_config import ARG
 from src.preprocessor.text import Corpus, batchify
 # corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
 
-class DAGTrainWrapper(TrainWrapperBase):
+from src.utils.debug_utils.tensorboard_tools import tx_writer, tx_counter
 
-    def debug_tools(self):
-        """
-            Includes any logic which includes having
-        :return:
-        """
-        # Debugging tools
-        self.writer = SummaryWriter(log_dir="/Users/david/neuralarchitecturesearch/tmp/runs/")
+class DAGTrainWrapper(TrainWrapperBase):
 
     def update_lr(self, lr):
         # Takes the optimizer, and the initial learning rate
@@ -48,8 +42,6 @@ class DAGTrainWrapper(TrainWrapperBase):
             lr=ARG.shared_lr,
             weight_decay=ARG.shared_l2_reg
         ) # The .parameters is required, and automatically built-in into any torch model
-
-        self.debug_tools()
 
     def predict(self, X, n=1):
         """
@@ -108,7 +100,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         return torch.exp(loss) / Y_hat.size(0) # Gotta normalize the loss
 
-    def train(self, X, Y):
+    def train(self, X, Y, log_offset=0):
         """
             Trains the model on a certain dataset.
             The datasets have to be of the shape:
@@ -121,6 +113,7 @@ class DAGTrainWrapper(TrainWrapperBase):
 
         :param X: The data
         :param Y: The shape
+        :param log_offset: Only for logging! The offset at which we initialize the new child model
         :return:
         """
 
@@ -168,10 +161,11 @@ class DAGTrainWrapper(TrainWrapperBase):
 
             losses[train_idx//ARG.batch_size] = loss
 
-            self.writer.add_scalar('loss/train_loss', loss, train_idx)
+            tx_counter[0] += 1
+            tx_writer.add_scalar('loss/train_loss', loss, tx_counter[0])
 
-            if train_idx % 100 == 0: # Export the tensorboard representation
-                self.writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
+            # if train_idx % 100 == 0: # Export the tensorboard representation
+            #     tx_writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
 
             sys.stdout.write("-")
             sys.stdout.flush()
