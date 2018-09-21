@@ -81,7 +81,9 @@ class MetaTrainer:
                 loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
                 print("Validation loss: ", loss[0])
 
-                eval_idx = minibatch_offset // ARG.shared_max_step
+                eval_idx = (minibatch_offset // ARG.shared_max_step) \
+                           + max(current_epoch, current_epoch * (self.X_train.size(1) // ARG.shared_max_step))
+                print("Eval idx is: ", eval_idx, minibatch_offset, ARG.shared_max_step, self.X_train.size(1))
                 tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
 
             if current_epoch > ARG.shared_decay_after:
