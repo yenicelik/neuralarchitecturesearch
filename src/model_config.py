@@ -14,7 +14,7 @@ C_CHILD_HIDDEN_SIZE = 0
 net_arg = add_argument_group('Network')
 
 # Controller configuration
-net_arg.add_argument('--num_blocks', type=int, default=12)
+net_arg.add_argument('--num_blocks', type=int, default=7) # 12
 
 # Shared parameters for the child controller
 net_arg.add_argument('--shared_wdrop', type=float, default=0.5)

@@ -228,8 +228,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         averaged_output = torch.cat(outputs, 0)
 
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        last_hidden = partial_outputs[str(ARG.num_blocks - 1)]
-        output = torch.mean(averaged_output, dim=0)
+        output = torch.mean(averaged_output, dim=0) # partial_outputs[str(ARG.num_blocks - 1)]
 
         if self.batch_norm is not None and ARG.use_batch_norm:
             output = output.transpose(-1, -2)
@@ -241,7 +240,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             graph.layout(prog='dot')
             graph.draw('./tmp/cell_viz.png')
 
-        return output, last_hidden
+        return output
 
     def cell(self, inputx, hidden):
         """
@@ -346,8 +345,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         if ARG.shared_dropouti > 0:
             embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
-        logit, hidden = self.cell(inputx=embed, hidden=None)
-        logit = self.word_embedding_decoder(logit)
+        hidden = self.cell(inputx=embed, hidden=None)
+        logit = self.word_embedding_decoder(hidden)
         outputs.append(logit)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
@@ -359,7 +358,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             if ARG.shared_dropouti > 0:
                 embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
-            logit, hidden = self.cell(inputx=embed, hidden=hidden)
+            hidden = self.cell(inputx=embed, hidden=hidden)
+            logit = hidden
 
             if ARG.shared_dropout > 0:
                 logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)

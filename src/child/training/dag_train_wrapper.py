@@ -12,7 +12,6 @@ sys.stdout.flush()
 sys.stdout.write("\b" * (toolbar_width+1))
 
 from torch import nn
-from tensorboardX import SummaryWriter
 
 from src.child.training.train_wrapper_base import TrainWrapperBase
 from src.model_config import ARG
