@@ -14,8 +14,8 @@ elif platform == "darwin":
     config['dev'] = True
 
 config['datapath_save_weights'] = config['basepath'] + "model/weights/"
-config['filename_weights'] = "weights_dictionary.pkl"
 config['model_savepath'] = config['basepath'] + "model_saves/"
+config['tensorboard_savepath'] = config['basepath'] + "model_saves/tensorboard/"
 
 # Create paths if not existent
 if not os.path.exists(os.path.dirname(config['datapath_save_weights'])):
@@ -23,3 +23,6 @@ if not os.path.exists(os.path.dirname(config['datapath_save_weights'])):
 
 if not os.path.exists(os.path.dirname(config['model_savepath'])):
     os.makedirs(os.path.dirname(config['model_savepath']))
+
+if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
+    os.makedirs(os.path.dirname(config['tensorboard_savepath']))

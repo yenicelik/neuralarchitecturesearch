@@ -1,4 +1,6 @@
 from tensorboardX import SummaryWriter
 
-tx_writer = SummaryWriter(log_dir="/Users/david/neuralarchitecturesearch/tmp/runs/")
+from src.config import config
+
+tx_writer = SummaryWriter(log_dir=config['tensorboard_savepath'])
 tx_counter = [0] # A small hack, where we have a global variable

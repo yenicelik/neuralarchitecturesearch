@@ -3,6 +3,7 @@
     1. the child model
     2. the controller (based on the loss of the child model)
 """
+import os
 import numpy as np
 
 import torch
@@ -18,6 +19,8 @@ from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
 
 from src.utils.debug_utils.tensorboard_tools import tx_writer
+
+random.seed(a=2)
 
 
 class MetaTrainer:
@@ -45,12 +48,21 @@ class MetaTrainer:
 
         if is_best:
             print("Copying model to the best copy")
-            shutil.copyfile(full_path, full_path + "_n" + str(random.randint(1, 1000)) + "pth.tar")
+            new_path = full_path + "_n" + str(random.randint(1, 7)) + "pth.tar"
+            shutil.copyfile(full_path, new_path)
 
     def load_child_model(self, model_path):
 
-        pass
+        full_path = config['model_savepath'] + model_path
 
+        if os.path.isfile(full_path):
+            print("=> loading checkpoint ", full_path)
+            checkpoint = torch.load(full_path)
+            self.child_model.load_state_dict(checkpoint['state_dict'])
+            self.child_trainer.optimizer.load_state_dict(checkpoint['optimizer'])
+            print("=> loading checkpoint successful! ")
+        else:
+            print("=> no checkpoint found at ", full_path)
 
     def __init__(self, X_train, Y_train, X_val, Y_val, X_test, Y_test):
         """
@@ -141,16 +153,17 @@ class MetaTrainer:
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
             tx_writer.add_scalar('misc/max_gradient', biggest_gradient, current_epoch)
 
-            self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
+            # self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
+            self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
 
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
     # meta_trainer.train()
 
-    train_off = 1000
+    train_off = 9000
 
-    data, target = load_dataset(dev=True, dev_size=1500)
+    data, target = load_dataset(dev=True, dev_size=10000)
     X_train = data[:train_off]
     Y_train = data[:train_off]
     X_val = data[train_off:]
