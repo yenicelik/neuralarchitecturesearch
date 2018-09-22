@@ -6,10 +6,6 @@ def _check_abs_max_grad(abs_max_grad, model):
                     for p in model.parameters()
                     if p.grad is not None]
 
-    # print("Finite grads are: ")
-    # print(finite_grads)
-    # exit(0)
-
     new_max_grad = max([grad.max() for grad in finite_grads])
     new_min_grad = min([grad.min() for grad in finite_grads])
 

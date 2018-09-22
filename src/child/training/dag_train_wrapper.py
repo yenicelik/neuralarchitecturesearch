@@ -158,10 +158,10 @@ class DAGTrainWrapper(TrainWrapperBase):
             torch.nn.utils.clip_grad_norm(self.model.parameters(), ARG.shared_grad_clip)
             self.optimizer.step()
 
-            losses[train_idx//ARG.batch_size] = loss
+            losses[train_idx//ARG.batch_size] = loss / ARG.batch_size
 
             tx_counter[0] += 1
-            tx_writer.add_scalar('loss/train_loss', loss, tx_counter[0])
+            tx_writer.add_scalar('loss/train_loss', loss / ARG.batch_size, tx_counter[0])
 
             # if train_idx % 100 == 0: # Export the tensorboard representation
             #     tx_writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")

@@ -7,10 +7,12 @@ import numpy as np
 
 import torch
 import random
+import shutil
 from torch.autograd import Variable
 
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
+from src.config import config
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
@@ -22,7 +24,9 @@ class MetaTrainer:
 
     def save_child_model(self, is_best, loss, epoch, dag, filename):
 
-        full_path = "./" + filename + "_n" + self.nonce
+
+
+        full_path = config['model_savepath'] + filename.replace(" ", "_") + "_n" + self.nonce + ".torchsave"
 
         print("Saving child model!", full_path)
 
@@ -31,17 +35,21 @@ class MetaTrainer:
             'dag': dag,
             'state_dict': self.child_model.state_dict(),
             'loss': loss,
-            'optimizer': self.child_trainer.optimizer.state_dict()
-
+            'optimizer': self.child_trainer.optimizer.state_dict(),
+            'is_best': is_best
         }
 
         print("Child model saved to: ", full_path)
 
-        # print(self.child_model.state_dict())
+        torch.save(save_checkpoint, full_path)
 
-        # torch.save(self.child_model, filename)
-        # if is_best:
-        #     shutil.copyfile(filename, 'model_best.pth.tar')
+        if is_best:
+            print("Copying model to the best copy")
+            shutil.copyfile(full_path, full_path + "_n" + str(random.randint(1, 1000)) + "pth.tar")
+
+    def load_child_model(self, model_path):
+
+        pass
 
 
     def __init__(self, X_train, Y_train, X_val, Y_val, X_test, Y_test):
