@@ -7,11 +7,13 @@ config['DEV'] = True
 
 # Determine if we're on a cluster, on on mac
 if platform == "linux" or platform == "linux2":
-    config['basepath'] = "/home/yedavid/BachelorThesis/"
+    config['basepath'] = "/home/david/neuralarchitecturesearch/"
     config['dev'] = False
+    config['cuda'] = True
 elif platform == "darwin":
     config['basepath'] = "/Users/david/neuralarchitecturesearch/"
     config['dev'] = True
+    config['cuda'] = False
 
 config['datapath_save_weights'] = config['basepath'] + "model/weights/"
 config['model_savepath'] = config['basepath'] + "model_saves/"

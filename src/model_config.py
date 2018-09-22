@@ -14,7 +14,7 @@ C_CHILD_HIDDEN_SIZE = 0
 net_arg = add_argument_group('Network')
 
 # Controller configuration
-net_arg.add_argument('--num_blocks', type=int, default=7) # 12
+net_arg.add_argument('--num_blocks', type=int, default=12) # 12 # TODO: implement one assert, if this is ok
 
 # Shared parameters for the child controller
 net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
@@ -22,10 +22,10 @@ net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
 net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
 net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
 
-# net_arg.add_argument('--shared_embed', type=int, default=1000) # TODO: 200, 500, 1000
-net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 1000
-# net_arg.add_argument('--shared_hidden', type=int, default=1000)
-net_arg.add_argument('--shared_hidden', type=int, default=100)
+net_arg.add_argument('--shared_embed', type=int, default=512) # TODO: 200, 500, 1000
+# net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 1000
+net_arg.add_argument('--shared_hidden', type=int, default=512)
+# net_arg.add_argument('--shared_hidden', type=int, default=100)
 net_arg.add_argument('--shared_rnn_max_length', type=int, default=35)
 
 net_arg.add_argument('--shared_tie_weights', type=int, default=1, help="Non-zero value means we tie the weights")
@@ -36,7 +36,7 @@ learn_arg = add_argument_group('Learning')
 learn_arg.add_argument('--mode', type=str, default='train',
                        choices=['train', 'derive', 'test'],
                        help='train: Training ENAS, derive: Deriving Architectures')
-learn_arg.add_argument('--batch_size', type=int, default=64)
+learn_arg.add_argument('--batch_size', type=int, default=32)
 learn_arg.add_argument('--test_batch_size', type=int, default=1)
 learn_arg.add_argument('--max_epoch', type=int, default=150)
 # learn_arg.add_argument('--entropy_mode', type=str, default='reward', choices=['reward', 'regularizer']) # TODO: what is this?

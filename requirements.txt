@@ -1,12 +1,13 @@
 torch==0.4.1
 torchvision==0.2.1
 graphviz==0.9
-pytorchviz==0.0.1
+git+https://github.com/szagoruyko/pytorchviz
 # git+https://github.com/szagoruyko/pytorchviz
 hypothesis==3.70.3
 pytest==3.8.0
 # visualdl==1.1.0
 networkx==1.5
-matplotlib==1.15.1
+# matplotlib==1.15.1
 tensorboardX==1.4
 tensorflow==1.10.1
+numpy

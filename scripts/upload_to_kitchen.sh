@@ -1,0 +1,1 @@
+rsync -rPz -e 'ssh -p 8080' --exclude 'virt/' --progress /Users/david/neuralarchitecturesearch/ david@yeniceli.ddns.net:/home/david/neuralarchitecturesearch/

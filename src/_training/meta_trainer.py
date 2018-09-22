@@ -20,8 +20,7 @@ from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
 
 from src.utils.debug_utils.tensorboard_tools import tx_writer
 
-random.seed(a=2)
-
+# random.seed(a=2)
 
 class MetaTrainer:
 
@@ -87,6 +86,17 @@ class MetaTrainer:
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
+        if config['cuda'] and torch.cuda.is_available():
+            print("Enabling CUDA!")
+            self.child_model.cuda()
+
+            self.X_train = X_train.cuda()
+            self.Y_train = Y_train.cuda()
+            self.X_val = X_val.cuda()
+            self.Y_val = Y_val.cuda()
+            self.X_test = X_test.cuda()
+            self.Y_test = Y_test.cuda()
+
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 
     def get_child_validation_loss(self):
@@ -95,9 +105,9 @@ class MetaTrainer:
 
     def train_controller_and_child(self):
         # Setting up the trainers
-        # dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+        dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
         # dag_description = "1 0 3 0 1 1 2 3 0"
-        dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
+        # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
         dag_list = [int(x) for x in dag_description.split()]
 
         self.child_model.overwrite_dag(dag_list)
@@ -111,11 +121,11 @@ class MetaTrainer:
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
-            for minibatch_offset in range(0, self.X_train.size(1), ARG.shared_max_step):
+            for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step):
 
-                # dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+                dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"
-                dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
+                # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
                 dag_list = [int(x) for x in dag_description.split()]
 
                 self.child_model.overwrite_dag(dag_list)
@@ -129,16 +139,18 @@ class MetaTrainer:
                                   minibatch_offset + ARG.shared_max_step
                               ]
 
+                print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
+
                 self.child_trainer.train(
                     X=X_minibatch,
                     Y=Y_minibatch
                 )
 
                 loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-                print("Validation loss: ", loss[0])
+                print("Validation loss: ", loss)
 
                 eval_idx = (minibatch_offset // ARG.shared_max_step) \
-                           + max(current_epoch, current_epoch * (self.X_train.size(1) // ARG.shared_max_step))
+                           + max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
                 print("Eval idx is: ", eval_idx, minibatch_offset, ARG.shared_max_step, self.X_train.size(1))
                 tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
 
@@ -153,21 +165,31 @@ class MetaTrainer:
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
             tx_writer.add_scalar('misc/max_gradient', biggest_gradient, current_epoch)
 
-            # self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
-            self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
+            self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
+            # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
 
 
 if __name__ == "__main__":
     print("Starting to train the meta model")
     # meta_trainer.train()
 
-    train_off = 9000
+    # train_off = 9000
+    # val_off = 1000
 
-    data, target = load_dataset(dev=True, dev_size=10000)
+    data, target = load_dataset(dev=False, dev_size=10000)
+
+    m = data.size(0)
+    print("So many samples!")
+
+    train_off = round(m * (4/6))
+    val_off = round(m * (1/6))
+
     X_train = data[:train_off]
-    Y_train = data[:train_off]
-    X_val = data[train_off:]
-    Y_val = data[train_off:]
+    Y_train = target[:train_off]
+    X_val = data[train_off:train_off+val_off]
+    Y_val = target[train_off:train_off+val_off]
+    X_test = data[train_off+val_off:]
+    Y_test = target[train_off+val_off:]
 
 
     # print_batches(data, target)

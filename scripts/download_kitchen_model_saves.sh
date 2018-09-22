@@ -1,0 +1,1 @@
+rsync -rPz -e 'ssh -p 8080' --exclude='*.torchsave' --exclude='*.tar' --progress david@yeniceli.ddns.net:/home/david/neuralarchitecturesearch/model_saves/ /Users/david/neuralarchitecturesearch/model_saves_kitchen/

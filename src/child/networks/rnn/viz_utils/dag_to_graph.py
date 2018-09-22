@@ -20,7 +20,7 @@ def add_node(graph, node_id, label, shape='box', style='filled'):
         color = 'white'
 
     if not any(label.startswith(word) for word in  ['x', 'avg', 'h']):
-        label = f"{label}\n({node_id})"
+        label = str(label) + "\n(" + str(node_id) + ")"
 
     graph.add_node(
             node_id, label=label, color='black', fillcolor=color,

@@ -330,6 +330,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :param X:
         :return:
         """
+        X = X.cuda()
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
         batch_size = X.size(0)
