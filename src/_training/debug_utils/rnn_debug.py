@@ -13,7 +13,7 @@ def to_word(x):
     return corpus.dictionary.idx2word[x]
 
 def load_dataset(dev=False, dev_size=500):
-    batch = batchify(corpus.train, ARG.shared_rnn_max_length+1, use_cuda=False)
+    batch = batchify(corpus.train, ARG.shared_rnn_max_length+1, use_cuda=config['cuda'])
     print(batch)
     print(batch.size())
 

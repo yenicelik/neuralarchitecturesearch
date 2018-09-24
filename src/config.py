@@ -10,11 +10,9 @@ config['DEV'] = True
 if platform == "linux" or platform == "linux2":
     config['basepath'] = "/home/david/neuralarchitecturesearch/"
     config['dev'] = False
-    config['cuda'] = True
 elif platform == "darwin":
     config['basepath'] = "/Users/david/neuralarchitecturesearch/"
     config['dev'] = True
-    config['cuda'] = False
 
 config['datapath_save_weights'] = config['basepath'] + "model/weights/"
 config['model_savepath'] = config['basepath'] + "model_saves/"
@@ -36,7 +34,9 @@ if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
 if torch.cuda.is_available():
     print("Using cuda!")
     C_DEVICE = torch.device('cuda')
+    config['cuda'] = True
 else:
     print("Using cpu!")
     C_DEVICE = torch.device('cpu')
+    config['cuda'] = False
 

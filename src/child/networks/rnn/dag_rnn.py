@@ -112,7 +112,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
         for param in self.parameters():
             param.data.uniform_(-init_range, init_range)
-            print(param.name, param.data)
+            # print(param.name, param.data)
 
         # Reset parameters for the arrays
 
@@ -140,6 +140,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         self._h_weight_hidden2block = torch.nn.Parameter(self.h_weight_hidden2block.weight)
         self._c_weight_hidden2block = torch.nn.Parameter(self.c_weight_hidden2block.weight)
+
+        self.hidden = torch.nn.Parameter(torch.randn((ARG.shared_hidden,)),
+                               requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
 
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
@@ -250,9 +253,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         if hidden is None:  # If hidden is none, then spawn a hidden cell
-            hidden = Variable(torch.randn((ARG.shared_hidden,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
-            hidden = hidden.to(C_DEVICE)
-        return self.build_cell(inputx, hidden, self.dag)
+            torch.nn.init.uniform(self.hidden)
+            return self.build_cell(inputx, self.hidden, self.dag)
+        else:
+            return self.build_cell(inputx, hidden, self.dag)
 
     def overwrite_dag(self, new_dag):
         assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
@@ -340,7 +344,6 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :param X:
         :return:
         """
-        X = X.to(C_DEVICE)
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
         batch_size = X.size(0)

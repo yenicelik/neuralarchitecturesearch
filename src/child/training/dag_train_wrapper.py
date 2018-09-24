@@ -45,37 +45,37 @@ class DAGTrainWrapper(TrainWrapperBase):
             weight_decay=ARG.shared_l2_reg
         ) # The .parameters is required, and automatically built-in into any torch model
 
-    def predict(self, X, n=1):
-        """
-            Predicts the next n elements given past X elements.
-
-                X.size() <- (total_data_size, time_length, **data_size )
-
-        :param X:
-        :param Y:
-        :return:
-        """
-
-        assert n==1, ("Cases where n>1 are not implemented yet!", n)
-
-        # Take the very last output from a "forward"
-        Y_hat = self.model.forward(X)
-        prediction = Y_hat[:, -1]
-        print("Predictions have size: ", prediction.size())
-
-        prediction_index = torch.argmax(prediction, dim=-1, keepdim=True)
-        print("Prediction index has size: ", prediction_index.size())
-
-        tmax, _ = torch.max(prediction, dim=-1, keepdim=True)
-        print(tmax)
-        # print("Prediction and tmax shape: ", prediction.size(), tmax.size())
-        e_x = torch.sub(prediction, tmax)
-        class_probabilities = e_x / torch.sum(e_x, dim=-1, keepdim=True)
-
-        # print("Summed probabilites are: (should be all 1)", torch.sum(class_probabilities, dim=-1))
-        print(class_probabilities.size())
-
-        return prediction_index, class_probabilities
+    # def predict(self, X, n=1):
+    #     """
+    #         Predicts the next n elements given past X elements.
+    #
+    #             X.size() <- (total_data_size, time_length, **data_size )
+    #
+    #     :param X:
+    #     :param Y:
+    #     :return:
+    #     """
+    #
+    #     assert n==1, ("Cases where n>1 are not implemented yet!", n)
+    #
+    #     # Take the very last output from a "forward"
+    #     Y_hat = self.model.forward(X)
+    #     prediction = Y_hat[:, -1]
+    #     print("Predictions have size: ", prediction.size())
+    #
+    #     prediction_index = torch.argmax(prediction, dim=-1, keepdim=True)
+    #     print("Prediction index has size: ", prediction_index.size())
+    #
+    #     tmax, _ = torch.max(prediction, dim=-1, keepdim=True)
+    #     print(tmax)
+    #     # print("Prediction and tmax shape: ", prediction.size(), tmax.size())
+    #     e_x = torch.sub(prediction, tmax)
+    #     class_probabilities = e_x / torch.sum(e_x, dim=-1, keepdim=True)
+    #
+    #     # print("Summed probabilites are: (should be all 1)", torch.sum(class_probabilities, dim=-1))
+    #     print(class_probabilities.size())
+    #
+    #     return prediction_index, class_probabilities
 
     def get_loss(self, X, Y):
         """
@@ -95,13 +95,15 @@ class DAGTrainWrapper(TrainWrapperBase):
         for data_idx in range(0, X.size(0), ARG.batch_size):
 
             if data_idx + ARG.batch_size > X.size(0):
+                print("Breaking! ")
                 break
 
             # Take subset of data, and apply all operations based on that
             X_cur = X[data_idx:data_idx+ARG.batch_size, :]
             Y_cur = Y[data_idx:data_idx+ARG.batch_size, :]
 
-            print("Size of the batches are: ", X_cur.size(), Y_cur.size())
+            # print("Size of the batches are: ", X_cur.size(), Y_cur.size())
+            # print(data_idx, " from ", X.size(0))
 
             Y_hat = self.model.forward(X_cur)
             Y_hat = Y_hat.transpose(1, -1) # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
@@ -112,12 +114,15 @@ class DAGTrainWrapper(TrainWrapperBase):
             Y_cur = Y_cur.transpose(2, -1)
             Y_cur = Y_cur.squeeze()
 
+            # print("Before entering criterion!", Y_hat.size(), Y_cur.size())
+
             current_loss = self.criterion(Y_hat, Y_cur)
+            # print("Current loss is: ", current_loss)
             loss_arr.append(current_loss)
 
         total_loss = sum(loss_arr) / len(loss_arr)
 
-        return torch.exp(total_loss) / Y_hat.size(0) # Gotta normalize the loss
+        return torch.exp(total_loss) / Y.size(0) # Gotta normalize the loss
 
     def train(self, X, Y, log_offset=0):
         """

@@ -8,8 +8,9 @@ import numpy as np
 
 import torch
 import random
+import gc
 import shutil
-from torch.autograd import Variable
+import psutil
 
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
@@ -77,12 +78,12 @@ class MetaTrainer:
         """
         self.nonce = str(random.randint(1, 10000))
 
-        self.X_train = X_train.to(C_DEVICE)
-        self.Y_train = Y_train.to(C_DEVICE)
-        self.X_val = X_val.to(C_DEVICE)
-        self.Y_val = Y_val.to(C_DEVICE)
-        self.X_test = X_test.to(C_DEVICE)
-        self.Y_test = Y_test.to(C_DEVICE)
+        self.X_train = X_train
+        self.Y_train = Y_train
+        self.X_val = X_val
+        self.Y_val = Y_val
+        self.X_test = X_test
+        self.Y_test = Y_test
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
@@ -103,16 +104,27 @@ class MetaTrainer:
 
         self.child_model.overwrite_dag(dag_list)
 
+        self.child_model.set_train(is_train=False)
+
         loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
         print("Validation loss: ", loss)
 
         best_val_loss = np.inf
         biggest_gradient = 0.
 
+        torch.cuda.empty_cache()
+
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
             for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step):
+
+                pid = os.getpid()
+                py = psutil.Process(pid)
+
+                process = psutil.Process(os.getpid())
+                print("Total memory used (MB): ", process.memory_info().rss // 1024 // 1024)
+
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"
@@ -137,6 +149,8 @@ class MetaTrainer:
                     Y=Y_minibatch
                 )
 
+                self.child_model.set_train(is_train=False)
+
                 loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
                 print("Validation loss: ", loss)
 
@@ -144,7 +158,6 @@ class MetaTrainer:
                            + max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
                 print("Eval idx is: ", eval_idx, minibatch_offset, ARG.shared_max_step, self.X_train.size(1))
                 tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
-
 
             if current_epoch > ARG.shared_decay_after:
                 new_lr = ARG.shared_lr * ( ARG.shared_decay**(current_epoch-ARG.shared_decay_after) )
@@ -181,7 +194,6 @@ if __name__ == "__main__":
     Y_val = target[train_off:train_off+val_off]
     X_test = data[train_off+val_off:]
     Y_test = target[train_off+val_off:]
-
 
     # print_batches(data, target)
 
