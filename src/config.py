@@ -4,15 +4,12 @@ from sys import platform
 
 
 config = {}
-config['DEV'] = True
 
 # Determine if we're on a cluster, on on mac
 if platform == "linux" or platform == "linux2":
     config['basepath'] = "/home/david/neuralarchitecturesearch/"
-    config['dev'] = False
 elif platform == "darwin":
     config['basepath'] = "/Users/david/neuralarchitecturesearch/"
-    config['dev'] = True
 
 config['datapath_save_weights'] = config['basepath'] + "model/weights/"
 config['model_savepath'] = config['basepath'] + "model_saves/"
@@ -30,8 +27,8 @@ if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
 
 # Constants (used often, and as a variable)
 
-
-if torch.cuda.is_available():
+# Checking if the memory leak is only because of cuda!
+if False and torch.cuda.is_available():
     print("Using cuda!")
     C_DEVICE = torch.device('cuda')
     config['cuda'] = True

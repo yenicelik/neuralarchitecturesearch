@@ -10,7 +10,6 @@ import torch
 import random
 import gc
 import shutil
-import psutil
 
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
@@ -18,6 +17,7 @@ from src.config import config, C_DEVICE
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
+from src.utils.debug_utils.size_network import memory_usage_resource
 
 from src.utils.debug_utils.tensorboard_tools import tx_writer
 
@@ -112,19 +112,12 @@ class MetaTrainer:
         best_val_loss = np.inf
         biggest_gradient = 0.
 
-        torch.cuda.empty_cache()
-
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
             for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step):
 
-                pid = os.getpid()
-                py = psutil.Process(pid)
-
-                process = psutil.Process(os.getpid())
-                print("Total memory used (MB): ", process.memory_info().rss // 1024 // 1024)
-
+                print("Total memory used (MB): ", memory_usage_resource())
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"

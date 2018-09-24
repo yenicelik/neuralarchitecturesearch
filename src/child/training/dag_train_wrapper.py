@@ -95,7 +95,6 @@ class DAGTrainWrapper(TrainWrapperBase):
         for data_idx in range(0, X.size(0), ARG.batch_size):
 
             if data_idx + ARG.batch_size > X.size(0):
-                print("Breaking! ")
                 break
 
             # Take subset of data, and apply all operations based on that
