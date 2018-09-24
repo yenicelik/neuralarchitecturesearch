@@ -19,6 +19,7 @@ from src.child.networks.rnn.dag_utils.activation_function import get_activation_
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
+from src.config import C_DEVICE
 
 from src.model_config import ARG
 
@@ -45,6 +46,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         # Calculate the c's
+
         c_t1 = self.w_input_to_c(inputx)
         c_t2 = self.w_previous_hidden_to_c(hidden)
 
@@ -249,6 +251,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         """
         if hidden is None:  # If hidden is none, then spawn a hidden cell
             hidden = Variable(torch.randn((ARG.shared_hidden,)), requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
+            hidden = hidden.to(C_DEVICE)
         return self.build_cell(inputx, hidden, self.dag)
 
     def overwrite_dag(self, new_dag):
@@ -273,6 +276,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Apply BatchNorm
         if is_train:
             self.batch_norm = nn.BatchNorm1d(ARG.shared_hidden)
+            self.batch_norm.to(C_DEVICE)
         else:
             self.batch_norm = None
 
@@ -302,10 +306,16 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self._generate_block_weights()
 
         # These weights are only for the very first block
-        self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden)
-        self.w_input_to_h = nn.Linear(ARG.shared_embed, ARG.shared_hidden)
-        self.w_previous_hidden_to_c = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
-        self.w_previous_hidden_to_h = nn.Linear(ARG.shared_hidden, ARG.shared_hidden)
+        self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden, bias=False) # TODO: bias=False?
+        self.w_input_to_h = nn.Linear(ARG.shared_embed, ARG.shared_hidden, bias=False)
+        self.w_previous_hidden_to_c = nn.Linear(ARG.shared_hidden, ARG.shared_hidden, bias=False)
+        self.w_previous_hidden_to_h = nn.Linear(ARG.shared_hidden, ARG.shared_hidden, bias=False)
+
+        # Register these weights as parameters
+        self._w_input_to_c = nn.Parameter(self.w_input_to_c.weight)
+        self._w_input_to_h = nn.Parameter(self.w_input_to_h.weight)
+        self._w_previous_hidden_to_c = nn.Parameter(self.w_previous_hidden_to_c.weight)
+        self._w_previous_hidden_to_h = nn.Parameter(self.w_previous_hidden_to_h.weight)
 
         # Additional parameters
         self.set_train(is_train=True)
@@ -330,7 +340,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :param X:
         :return:
         """
-        X = X.cuda()
+        X = X.to(C_DEVICE)
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
         batch_size = X.size(0)

@@ -4,6 +4,9 @@ import torch as t
 
 import collections
 
+from src.config import C_DEVICE
+
+
 class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
@@ -64,7 +67,7 @@ def batchify(data, bsz, use_cuda):
     data = data.narrow(0, 0, nbatch * bsz)
     data = data.view(bsz, -1).t().contiguous()
     if use_cuda:
-        data = data.cuda()
+        data = data.to(C_DEVICE)
     return data
 
 if __name__ == "__main__":

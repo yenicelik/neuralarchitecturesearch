@@ -4,12 +4,15 @@
 """
 import numpy as np
 import torch
+import gc
 import sys
 toolbar_width = 40
 # setup toolbar
 sys.stdout.write("[%s]" % (" " * toolbar_width))
 sys.stdout.flush()
 sys.stdout.write("\b" * (toolbar_width+1))
+
+gc.enable()
 
 from torch import nn
 
@@ -81,23 +84,40 @@ class DAGTrainWrapper(TrainWrapperBase):
         :param Y:
         :return:
         """
+
+        print("We're retrieving the loss of the following tensors: ")
+        print(X.size(), Y.size())
+
         self.model.set_train(is_train=False)
-        Y_hat = self.model.forward(X)
-        # Take argmax because classification
-        # print("Output from model rnn is: ", Y_hat.size())
-        # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
-        Y_hat = Y_hat.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
-        Y_hat = Y_hat.transpose(2, -1)
 
-        Y = Y.transpose(1, -1)  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
-        Y = Y.transpose(2, -1)
-        # print("Shape of real Y and found Y: ", Y_hat.size(), Y.size())
-        Y = Y.squeeze()
-        # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
-        # print("Input types are: ", Y_hat.type(), Y_cur.type())
-        loss = self.criterion(Y_hat, Y)
+        # Take the criterion iteratively because the entire data will not immediately fit into memory
+        loss_arr = []
+        for data_idx in range(0, X.size(0), ARG.batch_size):
 
-        return torch.exp(loss) / Y_hat.size(0) # Gotta normalize the loss
+            if data_idx + ARG.batch_size > X.size(0):
+                break
+
+            # Take subset of data, and apply all operations based on that
+            X_cur = X[data_idx:data_idx+ARG.batch_size, :]
+            Y_cur = Y[data_idx:data_idx+ARG.batch_size, :]
+
+            print("Size of the batches are: ", X_cur.size(), Y_cur.size())
+
+            Y_hat = self.model.forward(X_cur)
+            Y_hat = Y_hat.transpose(1, -1) # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_hat = Y_hat.transpose(2, -1)
+            # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
+
+            Y_cur = Y_cur.transpose(1, -1) # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_cur = Y_cur.transpose(2, -1)
+            Y_cur = Y_cur.squeeze()
+
+            current_loss = self.criterion(Y_hat, Y_cur)
+            loss_arr.append(current_loss)
+
+        total_loss = sum(loss_arr) / len(loss_arr)
+
+        return torch.exp(total_loss) / Y_hat.size(0) # Gotta normalize the loss
 
     def train(self, X, Y, log_offset=0):
         """

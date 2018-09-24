@@ -22,9 +22,9 @@ net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
 net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
 net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
 
-net_arg.add_argument('--shared_embed', type=int, default=512) # TODO: 200, 500, 1000
+net_arg.add_argument('--shared_embed', type=int, default=10) # TODO: 200, 500, 1000
 # net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 1000
-net_arg.add_argument('--shared_hidden', type=int, default=512)
+net_arg.add_argument('--shared_hidden', type=int, default=10)
 # net_arg.add_argument('--shared_hidden', type=int, default=100)
 net_arg.add_argument('--shared_rnn_max_length', type=int, default=35)
 

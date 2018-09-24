@@ -13,7 +13,7 @@ from torch.autograd import Variable
 
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
-from src.config import config
+from src.config import config, C_DEVICE
 from src._training.debug_utils.rnn_debug import print_batches, load_dataset
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
@@ -77,25 +77,16 @@ class MetaTrainer:
         """
         self.nonce = str(random.randint(1, 10000))
 
-        self.X_train = X_train
-        self.Y_train = Y_train
-        self.X_val = X_val
-        self.Y_val = Y_val
-        self.X_test = X_test
-        self.Y_test = Y_test
+        self.X_train = X_train.to(C_DEVICE)
+        self.Y_train = Y_train.to(C_DEVICE)
+        self.X_val = X_val.to(C_DEVICE)
+        self.Y_val = Y_val.to(C_DEVICE)
+        self.X_test = X_test.to(C_DEVICE)
+        self.Y_test = Y_test.to(C_DEVICE)
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
-        if config['cuda'] and torch.cuda.is_available():
-            print("Enabling CUDA!")
-            self.child_model.cuda()
-
-            self.X_train = X_train.cuda()
-            self.Y_train = Y_train.cuda()
-            self.X_val = X_val.cuda()
-            self.Y_val = Y_val.cuda()
-            self.X_test = X_test.cuda()
-            self.Y_test = Y_test.cuda()
+        self.child_model.to(C_DEVICE)
 
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 

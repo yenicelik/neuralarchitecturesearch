@@ -1,4 +1,5 @@
 import os
+import torch
 from sys import platform
 
 
@@ -28,3 +29,14 @@ if not os.path.exists(os.path.dirname(config['model_savepath'])):
 
 if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
     os.makedirs(os.path.dirname(config['tensorboard_savepath']))
+
+# Constants (used often, and as a variable)
+
+
+if torch.cuda.is_available():
+    print("Using cuda!")
+    C_DEVICE = torch.device('cuda')
+else:
+    print("Using cpu!")
+    C_DEVICE = torch.device('cpu')
+
