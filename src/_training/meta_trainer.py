@@ -10,6 +10,7 @@ import torch
 import random
 import gc
 import shutil
+from torch.autograd import Variable
 
 import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
 import src.child.training.dag_train_wrapper as dag_train_wrapper
@@ -78,12 +79,19 @@ class MetaTrainer:
         """
         self.nonce = str(random.randint(1, 10000))
 
-        self.X_train = X_train
-        self.Y_train = Y_train
-        self.X_val = X_val
-        self.Y_val = Y_val
-        self.X_test = X_test
-        self.Y_test = Y_test
+        self.X_train = Variable(X_train)
+        self.Y_train = Variable(Y_train)
+        self.X_val = Variable(X_val)
+        self.Y_val = Variable(Y_val)
+        self.X_test = Variable(X_test)
+        self.Y_test = Variable(Y_test)
+
+        # del X_train
+        # del Y_train
+        # del X_val
+        # del Y_val
+        # del X_test
+        # del Y_test
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
@@ -100,14 +108,13 @@ class MetaTrainer:
         dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
         # dag_description = "1 0 3 0 1 1 2 3 0"
         # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
-        dag_list = [int(x) for x in dag_description.split()]
 
-        self.child_model.overwrite_dag(dag_list)
-
-        self.child_model.set_train(is_train=False)
-
-        loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-        print("Validation loss: ", loss)
+        print(" Skipping initial validation ")
+        # dag_list = [int(x) for x in dag_description.split()]
+        # self.child_model.overwrite_dag(dag_list)
+        #
+        # loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+        # print("Validation loss: ", loss)
 
         best_val_loss = np.inf
         biggest_gradient = 0.
@@ -119,33 +126,55 @@ class MetaTrainer:
 
                 print("Total memory used (MB): ", memory_usage_resource())
 
+                for obj in gc.get_objects():
+                    try:
+                        if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                            print(type(obj), obj.size())
+                    except:
+                        pass
+
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"
                 # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
                 dag_list = [int(x) for x in dag_description.split()]
 
+                print("Memory usage P1: ", memory_usage_resource())
+
                 self.child_model.overwrite_dag(dag_list)
 
-                X_minibatch = self.X_train[
+                X_minibatch = Variable(self.X_train[
                                   minibatch_offset:
                                   minibatch_offset+ARG.shared_max_step
-                              ]
-                Y_minibatch = self.Y_train[
+                              ]).to(C_DEVICE)
+                Y_minibatch = Variable(self.Y_train[
                                   minibatch_offset:
                                   minibatch_offset + ARG.shared_max_step
-                              ]
+                              ]).to(C_DEVICE)
 
                 print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
+
+                print("Memory usage P1: ", memory_usage_resource())
 
                 self.child_trainer.train(
                     X=X_minibatch,
                     Y=Y_minibatch
                 )
 
+                print("Memory usage P2: ", memory_usage_resource())
+
                 self.child_model.set_train(is_train=False)
 
-                loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-                print("Validation loss: ", loss)
+                print("Memory usage P3: ", memory_usage_resource())
+
+                del X_minibatch
+                del Y_minibatch
+                gc.collect()
+                torch.cuda.empty_cache()
+
+                print("Skipping validation loss")
+                # loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+                # print("Validation loss: ", loss)
+                loss = 0.0
 
                 eval_idx = (minibatch_offset // ARG.shared_max_step) \
                            + max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
@@ -188,6 +217,11 @@ if __name__ == "__main__":
     X_test = data[train_off+val_off:]
     Y_test = target[train_off+val_off:]
 
+    del data
+    del target
+    gc.collect()
+    torch.cuda.empty_cache()
+
     # print_batches(data, target)
 
     # print("Input to the meta trainer is: ", data.size(), target.size())
@@ -197,12 +231,14 @@ if __name__ == "__main__":
         Y_train=Y_train,
         X_val=X_val,
         Y_val=Y_val,
-        X_test=data,
-        Y_test=target
+        X_test=None,
+        Y_test=None
     )
 
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]
+
+    print("Before creating the train controller and child!")
 
     # meta_trainer.train_controller_and_child()
     meta_trainer.train_controller_and_child()

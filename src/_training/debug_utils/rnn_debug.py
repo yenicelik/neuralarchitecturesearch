@@ -1,6 +1,7 @@
 """
     Includes tools that allow to semantically debug the program
 """
+import gc
 from src.config import config
 from src.model_config import ARG
 from src.preprocessor.text import Corpus, batchify
@@ -13,15 +14,24 @@ def to_word(x):
     return corpus.dictionary.idx2word[x]
 
 def load_dataset(dev=False, dev_size=500):
-    batch = batchify(corpus.train, ARG.shared_rnn_max_length+1, use_cuda=config['cuda'])
+    batch = batchify(corpus.train, ARG.shared_rnn_max_length+1, use_cuda=False)
     print(batch)
     print(batch.size())
 
     # data, target = meta_trainer._get_batch(batch, 10)
     # print(data.size())
     # print(target.size())
-    data = batch[:dev_size, 0:ARG.shared_rnn_max_length, None]
-    target = batch[:dev_size, 1:1+ARG.shared_rnn_max_length, None]
+    if dev:
+        data = batch[:dev_size, 0:ARG.shared_rnn_max_length, None]
+        target = batch[:dev_size, 1:1+ARG.shared_rnn_max_length, None]
+    else:
+        data = batch[:, 0:ARG.shared_rnn_max_length, None]
+        target = batch[:, 1:1+ARG.shared_rnn_max_length, None]
+
+    del corpus.train
+    del corpus.test
+    del corpus.valid
+    gc.collect()
 
     return data, target
 

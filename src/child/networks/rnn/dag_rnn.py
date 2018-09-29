@@ -253,7 +253,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         if hidden is None:  # If hidden is none, then spawn a hidden cell
-            torch.nn.init.uniform(self.hidden)
+            torch.nn.init.uniform_(self.hidden)
             return self.build_cell(inputx, self.hidden, self.dag)
         else:
             return self.build_cell(inputx, hidden, self.dag)
