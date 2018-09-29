@@ -10,12 +10,13 @@ import sys
 from torch.autograd import Variable
 
 from src.config import C_DEVICE
+from src.utils.debug_utils.size_network import memory_usage_resource
 
 toolbar_width = 40
 # setup toolbar
 sys.stdout.write("[%s]" % (" " * toolbar_width))
 sys.stdout.flush()
-sys.stdout.write("\b" * (toolbar_width+1))
+sys.stdout.write("\b" * (toolbar_width + 1))
 
 gc.enable()
 
@@ -29,6 +30,7 @@ from src.preprocessor.text import Corpus, batchify
 # corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
 
 from src.utils.debug_utils.tensorboard_tools import tx_writer, tx_counter
+
 
 class DAGTrainWrapper(TrainWrapperBase):
 
@@ -48,7 +50,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             params=self.model.parameters(),
             lr=ARG.shared_lr,
             weight_decay=ARG.shared_l2_reg
-        ) # The .parameters is required, and automatically built-in into any torch model
+        )  # The .parameters is required, and automatically built-in into any torch model
 
     # def predict(self, X, n=1):
     #     """
@@ -82,62 +84,78 @@ class DAGTrainWrapper(TrainWrapperBase):
     #
     #     return prediction_index, class_probabilities
 
-    # def get_loss(self, X, Y):
-    #     """
-    #         Calculates the perplexity for the given X and Y's.
-    #     :param X:
-    #     :param Y:
-    #     :return:
-    #     """
-    #
-    #     print("We're retrieving the loss of the following tensors: ")
-    #     print(X.size(), Y.size())
-    #
-    #     self.model.set_train(is_train=False)
-    #
-    #     # Take the criterion iteratively because the entire data will not immediately fit into memory
-    #     loss_arr = []
-    #     for data_idx in range(0, X.size(0), ARG.batch_size):
-    #
-    #         if data_idx + ARG.batch_size > X.size(0):
-    #             break
-    #
-    #         # Take subset of data, and apply all operations based on that
-    #         X_cur = Variable(X[
-    #                          data_idx:
-    #                          data_idx+ARG.batch_size
-    #                          ], volatile=True).to(C_DEVICE)
-    #         Y_cur = Variable(Y[
-    #                          data_idx:data_idx+ARG.batch_size
-    #                          ], volatile=True).to(C_DEVICE)
-    #
-    #         # print("Size of the batches are: ", X_cur.size(), Y_cur.size())
-    #         # print(data_idx, " from ", X.size(0))
-    #
-    #         Y_hat = self.model.forward(X_cur)
-    #         Y_hat = Y_hat.transpose(1, -1).contiguous() # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
-    #         Y_hat = Y_hat.transpose(2, -1).contiguous()
-    #         # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
-    #
-    #         Y_cur = Y_cur.transpose(1, -1).contiguous() # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
-    #         Y_cur = Y_cur.transpose(2, -1).contiguous()
-    #         Y_cur = Y_cur.squeeze()
-    #
-    #         # print("Before entering criterion!", Y_hat.size(), Y_cur.size())
-    #
-    #         current_loss = self.criterion(Y_hat, Y_cur)
-    #         # print("Current loss is: ", current_loss)
-    #         loss_arr.append(current_loss)
-    #
-    #         del X_cur
-    #         del Y_cur
-    #         del Y_hat
-    #         gc.collect()
-    #         torch.cuda.empty_cache()
-    #
-    #     total_loss = sum(loss_arr) / len(loss_arr)
-    #
-    #     return torch.exp(total_loss) / Y.size(0) # Gotta normalize the loss
+    def get_loss(self, X, Y):
+        """
+            Calculates the perplexity for the given X and Y's.
+        :param X:
+        :param Y:
+        :return:
+        """
+
+        print("We're retrieving the loss of the following tensors: ")
+        print(X.size(), Y.size())
+
+        self.model.set_train(is_train=False)
+
+        # Take the criterion iteratively because the entire data will not immediately fit into memory
+        loss_arr = []
+        for data_idx in range(0, X.size(0), ARG.batch_size):
+
+            if data_idx + ARG.batch_size > X.size(0):
+                break
+
+
+            print("Memory usage Loss 1: ", memory_usage_resource())
+
+            # Take subset of data, and apply all operations based on that
+            X_cur = Variable(X[
+                             data_idx:
+                             data_idx+ARG.batch_size
+                             ]).to(C_DEVICE)
+            Y_cur = Variable(Y[
+                             data_idx:data_idx+ARG.batch_size
+                             ]).to(C_DEVICE)
+
+            print("Memory usage Loss 2: ", memory_usage_resource())
+
+            # print("Size of the batches are: ", X_cur.size(), Y_cur.size())
+            # print(data_idx, " from ", X.size(0))
+
+            Y_hat = self.model.forward(X_cur)
+
+            del X_cur
+            gc.collect()
+            torch.cuda.empty_cache()
+
+            Y_hat = Y_hat.transpose(1, -1).contiguous() # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_hat = Y_hat.transpose(2, -1).contiguous()
+            # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
+
+            print("Memory usage Loss 3: ", memory_usage_resource())
+
+            Y_cur = Y_cur.transpose(1, -1).contiguous() # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_cur = Y_cur.transpose(2, -1).contiguous()
+            Y_cur = Y_cur.squeeze()
+
+            # print("Before entering criterion!", Y_hat.size(), Y_cur.size())
+
+            print("Memory usage Loss 4: ", memory_usage_resource())
+
+            current_loss = self.criterion(Y_hat, Y_cur)
+            print("Current loss is: ", current_loss)
+            loss_arr.append(current_loss)
+
+            print("Memory usage Loss 5: ", memory_usage_resource())
+
+            del Y_cur
+            del Y_hat
+            del current_loss
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        total_loss = sum(loss_arr) / len(loss_arr)
+
+        return torch.exp(total_loss) / Y.size(0) # Gotta normalize the loss
 
     def train(self, X, Y, log_offset=0):
         """
@@ -161,7 +179,7 @@ class DAGTrainWrapper(TrainWrapperBase):
         assert X.size() == Y.size(), ("Not same size! (X, Y) :: ", X.size(), Y.size())
 
         data_size = X.size(0)
-        losses = torch.empty(data_size//ARG.batch_size)
+        losses = torch.empty(data_size // ARG.batch_size)
 
         # Do exactly one epoch
         for train_idx in range(0, data_size, ARG.batch_size):
@@ -171,27 +189,38 @@ class DAGTrainWrapper(TrainWrapperBase):
 
             # print("Getting the individual batch for training")
 
-            X_cur = X[train_idx:train_idx+ARG.batch_size, :]
-            Y_cur = Y[train_idx:train_idx+ARG.batch_size, :]
+            print("Memory usage L1: ", memory_usage_resource())
+
+            X_cur = X[train_idx:train_idx + ARG.batch_size, :]
+            Y_cur = Y[train_idx:train_idx + ARG.batch_size, :]
 
             # print_batches(X_cur, Y_cur)
             # exit(0)
             # X_cur = X_cur.transpose(0, 1)
             # Y_cur = Y_cur.transpose(0, 1)
 
+            print("Memory usage L2: ", memory_usage_resource())
+
             Y_hat = self.model.forward(X_cur)
             # Take argmax because classification
             # print("Output from model rnn is: ", Y_hat.size())
             # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
-            Y_hat = Y_hat.transpose(1, -1).contiguous() # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+
+            print("Memory usage L3: ", memory_usage_resource())
+
+            Y_hat = Y_hat.transpose(1,
+                                    -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_hat = Y_hat.transpose(2, -1).contiguous()
 
-            Y_cur = Y_cur.transpose(1, -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_cur = Y_cur.transpose(1,
+                                    -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_cur = Y_cur.transpose(2, -1).contiguous()
             # print("Shape of real Y and found Y: ", Y_hat.size(), Y_cur.size())
             Y_cur = Y_cur.squeeze()
             # print("Two inputs to the criterion: ", Y_hat.size(), Y_cur.size())
             # print("Input types are: ", Y_hat.type(), Y_cur.type())
+
+            print("Memory usage L4: ", memory_usage_resource())
 
             del X_cur
             gc.collect()
@@ -204,15 +233,22 @@ class DAGTrainWrapper(TrainWrapperBase):
             gc.collect()
             torch.cuda.empty_cache()
 
+            print("Memory usage L5: ", memory_usage_resource())
+
             # loss = 1.
             # print("Loss: ", loss)
+            self.model.zero_grad()
             loss.backward()
+
+            print("Memory usage L6: ", memory_usage_resource())
 
             # Clip gradients here
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), ARG.shared_grad_clip)
             self.optimizer.step()
 
-            losses[train_idx//ARG.batch_size] = loss / ARG.batch_size
+            print("Memory usage L7: ", memory_usage_resource())
+
+            losses[train_idx // ARG.batch_size] = loss / ARG.batch_size
 
             tx_counter[0] += 1
             tx_writer.add_scalar('loss/train_loss', loss / ARG.batch_size, tx_counter[0])
@@ -221,6 +257,8 @@ class DAGTrainWrapper(TrainWrapperBase):
             gc.collect()
             torch.cuda.empty_cache()
 
+            print("Memory usage L8: ", memory_usage_resource())
+
             # if train_idx % 100 == 0: # Export the tensorboard representation
             #     tx_writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
 
@@ -228,6 +266,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             sys.stdout.flush()
 
         sys.stdout.write("\n")
+        print()
 
         losses = losses / (data_size // ARG.batch_size)
 

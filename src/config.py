@@ -28,7 +28,7 @@ if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
 # Constants (used often, and as a variable)
 
 # Checking if the memory leak is only because of cuda!
-if False and torch.cuda.is_available():
+if torch.cuda.is_available():
     print("Using cuda!")
     C_DEVICE = torch.device('cuda')
     config['cuda'] = True

@@ -122,16 +122,17 @@ class MetaTrainer:
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
-            for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step):
+            for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step*ARG.batch_size):
+
 
                 print("Total memory used (MB): ", memory_usage_resource())
 
-                for obj in gc.get_objects():
-                    try:
-                        if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                            print(type(obj), obj.size())
-                    except:
-                        pass
+                # for obj in gc.get_objects():
+                #     try:
+                #         if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                #             print(type(obj), obj.size())
+                #     except:
+                #         pass
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"
@@ -144,16 +145,18 @@ class MetaTrainer:
 
                 X_minibatch = Variable(self.X_train[
                                   minibatch_offset:
-                                  minibatch_offset+ARG.shared_max_step
+                                  minibatch_offset+ARG.shared_max_step*ARG.batch_size
                               ]).to(C_DEVICE)
                 Y_minibatch = Variable(self.Y_train[
                                   minibatch_offset:
-                                  minibatch_offset + ARG.shared_max_step
+                                  minibatch_offset + ARG.shared_max_step*ARG.batch_size
                               ]).to(C_DEVICE)
 
                 print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
 
                 print("Memory usage P1: ", memory_usage_resource())
+
+                self.child_model.set_train(is_train=True)
 
                 self.child_trainer.train(
                     X=X_minibatch,
@@ -172,9 +175,10 @@ class MetaTrainer:
                 torch.cuda.empty_cache()
 
                 print("Skipping validation loss")
-                # loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
-                # print("Validation loss: ", loss)
-                loss = 0.0
+                with torch.no_grad():
+                    loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+                print("Validation loss: ", loss)
+                # loss = 0.0
 
                 eval_idx = (minibatch_offset // ARG.shared_max_step) \
                            + max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
