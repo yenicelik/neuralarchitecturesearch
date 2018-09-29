@@ -18,7 +18,7 @@ from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
 from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
-from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
+# from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
 from src.config import C_DEVICE
 
 from src.model_config import ARG
@@ -51,9 +51,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         c_t2 = self.w_previous_hidden_to_c(hidden)
 
         # Apply dropout if training
-        if ARG.shared_wdrop > 0:
-            c_t1 = self.w_dropout(c_t1)
-            c_t2 = self.w_dropout(c_t2)
+        # if ARG.shared_wdrop > 0:
+        #     c_t1 = self.w_dropout(c_t1)
+        #     c_t2 = self.w_dropout(c_t2)
 
         tmp = c_t1 + c_t2
         c = self.sigmoid(tmp)
@@ -62,9 +62,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         h_t2 = self.w_previous_hidden_to_h(hidden)
 
         # Apply dropout if training
-        if ARG.shared_wdrop > 0:
-            h_t1 = self.w_dropout(h_t1)
-            h_t2 = self.w_dropout(h_t2)
+        # if ARG.shared_wdrop > 0:
+        #     h_t1 = self.w_dropout(h_t1)
+        #     h_t2 = self.w_dropout(h_t2)
 
         tmp = h_t1 + h_t2
         tmp = act_fun(tmp)
@@ -89,8 +89,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         tmp = self.c_weight_block2block[i][j](internal_hidden)
 
         # Apply dropout if training
-        if ARG.shared_wdrop > 0:
-            tmp = self.w_dropout(tmp)
+        # if ARG.shared_wdrop > 0:
+        #     tmp = self.w_dropout(tmp)
 
         c = self.sigmoid(tmp)
 
@@ -99,8 +99,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         tmp = act_fun(tmp)
 
         # Apply dropout if training
-        if ARG.shared_wdrop > 0:
-            tmp = self.w_dropout(tmp)
+        # if ARG.shared_wdrop > 0:
+        #     tmp = self.w_dropout(tmp)
 
         t1 = torch.mul(c, tmp)
         t2 = torch.mul(1. - c, internal_hidden)
@@ -272,10 +272,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             self.eval()
 
         # Apply dropout
-        if is_train:
-            self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
-        else:
-            self.w_dropout = torch.nn.Dropout(0)
+        # if is_train:
+        #     self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
+        # else:
+        #     self.w_dropout = torch.nn.Dropout(0)
 
         # Apply BatchNorm
         if is_train:
@@ -288,12 +288,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         super(dlxDAGRNNModule, self).__init__()
 
         # Used probably for every application
-        # self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
-        self.word_embedding_module_encoder = EmbeddingDropout(
-            10000,
-            ARG.shared_embed,
-            dropout=ARG.shared_dropoute
-        )
+        self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
+        # self.word_embedding_module_encoder = EmbeddingDropout(
+        #     10000,
+        #     ARG.shared_embed,
+        #     dropout=ARG.shared_dropoute
+        # )
         self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
 
         if ARG.shared_tie_weights:
@@ -304,7 +304,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
         # Spawn the variational dropout cell
-        self.var_dropout = VariationalDropout()
+        # self.var_dropout = VariationalDropout()
         self.sigmoid = torch.nn.Sigmoid()
 
         self._generate_block_weights()
@@ -356,8 +356,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         embed = self.word_embedding_encoder(current_X)
 
         # Apply dropout
-        if ARG.shared_dropouti > 0:
-            embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+        # if ARG.shared_dropouti > 0:
+        #     embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
         hidden = self.cell(inputx=embed, hidden=None)
         logit = self.word_embedding_decoder(hidden)
@@ -369,14 +369,14 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             embed = self.word_embedding_encoder(current_X)
 
             # Apply dropout
-            if ARG.shared_dropouti > 0:
-                embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+            # if ARG.shared_dropouti > 0:
+            #     embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
             hidden = self.cell(inputx=embed, hidden=hidden)
             logit = hidden
 
-            if ARG.shared_dropout > 0:
-                logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
+            # if ARG.shared_dropout > 0:
+            #     logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
 
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)

@@ -105,15 +105,14 @@ class MetaTrainer:
 
     def train_controller_and_child(self):
         # Setting up the trainers
-        dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-        # dag_description = "1 0 3 0 1 1 2 3 0"
-        # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
-
-        print(" Skipping initial validation ")
+        # dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+        # # dag_description = "1 0 3 0 1 1 2 3 0"
+        # # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
+        #
         # dag_list = [int(x) for x in dag_description.split()]
         # self.child_model.overwrite_dag(dag_list)
         #
-        # loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+        # loss = self.child_trainer.get_loss(self.X_val.detach(), self.Y_val.detach())
         # print("Validation loss: ", loss)
 
         best_val_loss = np.inf
@@ -133,50 +132,55 @@ class MetaTrainer:
                 #             print(type(obj), obj.size())
                 #     except:
                 #         pass
+                # exit(0)
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 # dag_description = "1 0 3 0 1 1 2 3 0"
                 # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
                 dag_list = [int(x) for x in dag_description.split()]
 
-                print("Memory usage P1: ", memory_usage_resource())
+                if config['debug_memory']:
+                    print("Memory usage P1: ", memory_usage_resource())
 
                 self.child_model.overwrite_dag(dag_list)
 
-                X_minibatch = Variable(self.X_train[
+                X_minibatch = self.X_train[
                                   minibatch_offset:
                                   minibatch_offset+ARG.shared_max_step*ARG.batch_size
-                              ]).to(C_DEVICE)
-                Y_minibatch = Variable(self.Y_train[
+                              ].detach()
+                Y_minibatch = self.Y_train[
                                   minibatch_offset:
                                   minibatch_offset + ARG.shared_max_step*ARG.batch_size
-                              ]).to(C_DEVICE)
+                              ].detach()
 
-                print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
+                if config['debug_memory']:
+                    print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
 
-                print("Memory usage P1: ", memory_usage_resource())
-
-                self.child_model.set_train(is_train=True)
+                if config['debug_memory']:
+                    print("Memory usage P1: ", memory_usage_resource())
 
                 self.child_trainer.train(
-                    X=X_minibatch,
-                    Y=Y_minibatch
+                    X=X_minibatch.detach(),
+                    Y=Y_minibatch.detach()
                 )
 
-                print("Memory usage P2: ", memory_usage_resource())
+                if config['debug_memory']:
+                    print("Memory usage P2: ", memory_usage_resource())
 
-                self.child_model.set_train(is_train=False)
+                if config['debug_memory']:
+                    print("Memory usage P3: ", memory_usage_resource())
 
-                print("Memory usage P3: ", memory_usage_resource())
+                # Choose random indices to feed in to validation loss getter
+                ranomd_indices = np.random.choice(
+                    np.arange(self.X_val.size(0)),
+                    ARG.shared_max_step * ARG.batch_size // 3
+                )
 
-                del X_minibatch
-                del Y_minibatch
-                gc.collect()
-                torch.cuda.empty_cache()
-
-                print("Skipping validation loss")
                 with torch.no_grad():
-                    loss = self.child_trainer.get_loss(self.X_val, self.Y_val)
+                    loss = self.child_trainer.get_loss(
+                        self.X_val[ranomd_indices].detach(),
+                        self.Y_val[ranomd_indices].detach()
+                    )
                 print("Validation loss: ", loss)
                 # loss = 0.0
 
@@ -194,6 +198,7 @@ class MetaTrainer:
 
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
             tx_writer.add_scalar('misc/max_gradient', biggest_gradient, current_epoch)
+            print("Biggest gradient is:" , biggest_gradient)
 
             self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
             # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
@@ -206,13 +211,16 @@ if __name__ == "__main__":
     # train_off = 9000
     # val_off = 1000
 
-    data, target = load_dataset(dev=False, dev_size=10000)
+    data, target = load_dataset(dev=False, dev_size=5000)
 
     m = data.size(0)
     print("So many samples!")
 
-    train_off = round(m * (4/6))
-    val_off = round(m * (1/6))
+    train_off = round(m * (11./12))
+    val_off = round(m * (1./12))
+
+    # The second size element should represent the embedding
+    # This is needed for the crossentropy loss function
 
     X_train = data[:train_off]
     Y_train = target[:train_off]
@@ -226,9 +234,19 @@ if __name__ == "__main__":
     gc.collect()
     torch.cuda.empty_cache()
 
+    # if config['debug_printbatch']:
+    #     print_batches(X_train, Y_train)
+    #
+    # if config['debug_printbatch']:
+    #     print_batches(X_val, Y_val)
+    #
+    # if config['debug_printbatch']:
+    #     print_batches(X_test, Y_test)
+
     # print_batches(data, target)
 
     # print("Input to the meta trainer is: ", data.size(), target.size())
+
 
     meta_trainer = MetaTrainer(
         X_train=X_train,

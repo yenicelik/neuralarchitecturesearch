@@ -37,3 +37,7 @@ else:
     C_DEVICE = torch.device('cpu')
     config['cuda'] = False
 
+config['debug_memory'] = True
+config['debug_printbatch'] = False
+config['debug_print_max_gradient'] = True
+

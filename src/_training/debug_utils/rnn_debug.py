@@ -33,10 +33,16 @@ def load_dataset(dev=False, dev_size=500):
     del corpus.valid
     gc.collect()
 
+    # if config['debug_printbatch']:
+    #     print_batches(data, target)
+
     return data, target
 
-def print_batches(X, Y, c_max = 50):
+def print_batches(X, Y, c_max = 10):
     c = 0
+    print("\n\n\n\n###############################")
+    print("PRINTING EXAMPLES")
+
     for idx in range(X.size(0)):
         print([to_word(X[idx][jdx]) for jdx in range(X.size(1))])
         print([to_word(Y[idx][jdx]) for jdx in range(Y.size(1))])
@@ -44,3 +50,5 @@ def print_batches(X, Y, c_max = 50):
         c += 1
         if c > c_max:
             break
+
+    print("SIZES ARE: ", X.size(), Y.size())

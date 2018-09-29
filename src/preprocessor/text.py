@@ -67,7 +67,7 @@ def batchify(data, bsz, use_cuda):
     data = data.narrow(0, 0, nbatch * bsz)
     data = data.view(bsz, -1).t().contiguous()
     if use_cuda:
-        data = data.to(C_DEVICE)
+        data = data
     return data
 
 if __name__ == "__main__":

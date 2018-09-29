@@ -21,7 +21,7 @@ def generate_weights(input_size, hidden_size, num_blocks):
 
     # TODO:!! Do we have one single one for all, or do we have different ones for each individual one?
     # I think we have both. One is for when the last block used is "0"
-    print("Generating the lienar connection between the previous hidden output, and the first block")
+    # print("Generating the lienar connection between the previous hidden output, and the first block")
     hidde2firstblock = nn.Linear(
         in_features=input_size,
         out_features=hidden_size,
@@ -30,7 +30,7 @@ def generate_weights(input_size, hidden_size, num_blocks):
 
     for idx in range(0, num_blocks):
         for jdx in range(idx+1, num_blocks): # Do we add a +1 here?
-            print("Generating the linear connection between blocks: ", idx, jdx)
+            # print("Generating the linear connection between blocks: ", idx, jdx)
             block2block[idx][jdx] = nn.Linear(
                 in_features=hidden_size,
                 out_features=hidden_size,

@@ -22,11 +22,11 @@ net_arg.add_argument('--shared_dropout', type=float, default=0.4) # TODO
 net_arg.add_argument('--shared_dropoute', type=float, default=0.1) # TODO
 net_arg.add_argument('--shared_dropouti', type=float, default=0.65) # TODO
 
-net_arg.add_argument('--shared_embed', type=int, default=500) # TODO: 200, 500, 1000
+net_arg.add_argument('--shared_embed', type=int, default=1000) # TODO: 200, 500, 1000
 # net_arg.add_argument('--shared_embed', type=int, default=100) # TODO: 200, 500, 1000
-net_arg.add_argument('--shared_hidden', type=int, default=500)
+net_arg.add_argument('--shared_hidden', type=int, default=1000)
 # net_arg.add_argument('--shared_hidden', type=int, default=100)
-net_arg.add_argument('--shared_rnn_max_length', type=int, default=11)
+net_arg.add_argument('--shared_rnn_max_length', type=int, default=31)
 
 net_arg.add_argument('--shared_tie_weights', type=int, default=1, help="Non-zero value means we tie the weights")
 net_arg.add_argument('--shared_grad_clip', type=float, default=0.25)
@@ -36,13 +36,13 @@ learn_arg = add_argument_group('Learning')
 learn_arg.add_argument('--mode', type=str, default='train',
                        choices=['train', 'derive', 'test'],
                        help='train: Training ENAS, derive: Deriving Architectures')
-learn_arg.add_argument('--batch_size', type=int, default=16)
+learn_arg.add_argument('--batch_size', type=int, default=64)
 learn_arg.add_argument('--test_batch_size', type=int, default=1)
 learn_arg.add_argument('--max_epoch', type=int, default=150)
 # learn_arg.add_argument('--entropy_mode', type=str, default='reward', choices=['reward', 'regularizer']) # TODO: what is this?
 
 # Shared parameters for the child controller (training)
-learn_arg.add_argument('--shared_max_step', type=int, default=400,
+learn_arg.add_argument('--shared_max_step', type=int, default=400, # 400
                        help='step for shared parameters')
 learn_arg.add_argument('--shared_optim', type=str, default='sgd')
 learn_arg.add_argument('--shared_lr', type=float, default=20.0)

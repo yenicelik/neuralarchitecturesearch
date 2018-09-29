@@ -6,20 +6,34 @@ import torch
 import gc
 import sys
 import os
+import psutil
+
+PROCESS = psutil.Process(os.getpid())
+MEGA = 10 ** 6
+MEGA_STR = ' ' * MEGA
+
+
+#
+# def memory_usage_resource():
+#     # import resource
+#     # rusage_denom = 1024.
+#     # if sys.platform == 'darwin':
+#     #     # ... it seems that in OSX the output is different units ...
+#     #     rusage_denom = rusage_denom * rusage_denom
+#     # mem = resource.getrusage(resource.RUSAGE_SELF).ru_isrss / rusage_denom
+#     # return mem
+#     return os.system("free -m")
+
 
 def memory_usage_resource():
-    import resource
-    rusage_denom = 1024.
-    if sys.platform == 'darwin':
-        # ... it seems that in OSX the output is different units ...
-        rusage_denom = rusage_denom * rusage_denom
-    mem = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / rusage_denom
+    # return the memory usage in MB
+    import psutil
+    process = psutil.Process(os.getpid())
+    mem = process.memory_info()[0] / float(2 ** 20)
     return mem
 
 def memReport():
-    for obj in gc.get_objects():
-        if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-            print(type(obj), obj.size())
+    return os.system("free -m")
 
 def cpuStats():
     print(sys.version)
