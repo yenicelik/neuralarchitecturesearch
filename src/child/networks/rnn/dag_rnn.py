@@ -295,7 +295,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
         # Spawn the variational dropout cell
-        # self.var_dropout = VariationalDropout()
+        self.var_dropout = VariationalDropout()
         self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
 
         self.sigmoid = torch.nn.Sigmoid()
