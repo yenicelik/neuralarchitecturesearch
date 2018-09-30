@@ -349,8 +349,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         embed = self.word_embedding_encoder(current_X)
 
         # Apply dropout
-        # if ARG.shared_dropouti > 0:
-        #     embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+        embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
         hidden = self.cell(inputx=embed, hidden=None)
         logit = self.word_embedding_decoder(hidden)
@@ -362,14 +361,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             embed = self.word_embedding_encoder(current_X)
 
             # Apply dropout
-            # if ARG.shared_dropouti > 0:
-            #     embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+            embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
             hidden = self.cell(inputx=embed, hidden=hidden)
             logit = hidden
 
-            # if ARG.shared_dropout > 0:
-            #     logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
+            logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
 
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
