@@ -156,14 +156,14 @@ class DAGTrainWrapper(TrainWrapperBase):
             if config['debug_memory']:
                 print("Current loss is: ", current_loss)
 
-            loss_arr.append(current_loss)
+            loss_arr.append(current_loss.item())
 
             if config['debug_memory']:
                 print("Memory usage Loss 5: ", memory_usage_resource())
 
         total_loss = sum(loss_arr) / len(loss_arr)
 
-        return torch.exp(total_loss) / Y.size(0)  # Gotta normalize the loss
+        return np.exp(total_loss) / Y.size(0)  # Gotta normalize the loss
 
     def train(self, X, Y, log_offset=0):
         """
@@ -251,6 +251,8 @@ class DAGTrainWrapper(TrainWrapperBase):
             self.model.zero_grad()
             loss.backward()
 
+            torch.cuda.empty_cache()
+
             if config['debug_memory']:
                 print("Memory usage L6: ", memory_usage_resource())
 
@@ -261,10 +263,10 @@ class DAGTrainWrapper(TrainWrapperBase):
             if config['debug_memory']:
                 print("Memory usage L7: ", memory_usage_resource())
 
-            losses[train_idx // ARG.batch_size] = loss / ARG.batch_size
+            losses[train_idx // ARG.batch_size] = loss.item() / ARG.batch_size
 
             tx_counter[0] += 1
-            tx_writer.add_scalar('loss/train_loss', loss / ARG.batch_size, tx_counter[0])
+            tx_writer.add_scalar('loss/train_loss', loss.item() / ARG.batch_size, tx_counter[0])
 
             if config['debug_memory']:
                 print("Memory usage L8: ", memory_usage_resource())
