@@ -11,6 +11,7 @@ from torch.autograd import Variable
 
 from src._training.debug_utils.rnn_debug import print_batches
 from src.config import C_DEVICE, config
+from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad, _get_max_abs_weight_value
 from src.utils.debug_utils.size_network import memory_usage_resource
 
 toolbar_width = 40
@@ -132,14 +133,16 @@ class DAGTrainWrapper(TrainWrapperBase):
             if config['debug_memory']:
                 print("Memory usage Loss 2.5: ", memory_usage_resource())
 
-            Y_hat = Y_hat.transpose(1, -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_hat = Y_hat.transpose(1,
+                                    -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_hat = Y_hat.transpose(2, -1).contiguous()
             # Y_hat = torch.argmax(Y_hat, len(Y_hat.size())-1)
 
             if config['debug_memory']:
                 print("Memory usage Loss 3: ", memory_usage_resource())
 
-            Y_cur = Y_cur.transpose(1, -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
+            Y_cur = Y_cur.transpose(1,
+                                    -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
             Y_cur = Y_cur.transpose(2, -1).contiguous()
             Y_cur = Y_cur.squeeze()
 
@@ -204,14 +207,13 @@ class DAGTrainWrapper(TrainWrapperBase):
                     train_idx:
                     train_idx + ARG.batch_size, :].to(C_DEVICE).detach()
 
-            print("Sizes of the batches are: ")
             if config['debug_printbatch']:
                 print_batches(X_cur, Y_cur)
 
             # exit(0)
             # X_cur = X_cur.transpose(0, 1)
             # Y_cur = Y_cur.transpose(0, 1)
-            print(X_cur.size(), Y_cur.size())
+            # print(X_cur.size(), Y_cur.size())
 
             if config['debug_memory']:
                 print("Memory usage L2: ", memory_usage_resource())
@@ -223,11 +225,6 @@ class DAGTrainWrapper(TrainWrapperBase):
 
             if config['debug_memory']:
                 print("Memory usage L3: ", memory_usage_resource())
-
-            print("Sizes are: ")
-            print(Y_cur.size(), Y_hat.size())
-
-            # exit(0)
 
             Y_hat = Y_hat.transpose(1,
                                     -1).contiguous()  # TODO: Fix this thing of transposing randomly! Define the input dimension and feed it in like that
@@ -271,6 +268,9 @@ class DAGTrainWrapper(TrainWrapperBase):
 
             if config['debug_memory']:
                 print("Memory usage L8: ", memory_usage_resource())
+
+            # if config['debug_print_max_gradient']:
+            #     print("Maximum weight value is: ", _get_max_abs_weight_value(self.model))
 
             # if train_idx % 100 == 0: # Export the tensorboard representation
             #     tx_writer.export_scalars_to_json("/Users/david/neuralarchitecturesearch/tmp/all_scalar.json")
