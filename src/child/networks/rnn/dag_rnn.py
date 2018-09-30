@@ -272,11 +272,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         else:
             self.eval()
 
-        # Apply dropout
-        if is_train:
-            self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
-        else:
-            self.w_dropout = torch.nn.Dropout(0)
+        self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
+        # if is_train:
+        #     self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
+        # else:
+        #     self.w_dropout = torch.nn.Dropout(0)
 
         # Apply BatchNorm
         # if is_train:
