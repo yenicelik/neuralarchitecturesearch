@@ -235,10 +235,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
         output = torch.mean(averaged_output, dim=0) # partial_outputs[str(ARG.num_blocks - 1)]
 
-        if self.batch_norm is not None and ARG.use_batch_norm:
-            output = output.transpose(-1, -2)
-            output = self.batch_norm(output)
-            output = output.transpose(-1, -2)
+        # if self.batch_norm is not None and ARG.use_batch_norm:
+        #     output = output.transpose(-1, -2)
+        #     output = self.batch_norm(output)
+        #     output = output.transpose(-1, -2)
 
         if GEN_GRAPH:
             print("Printing graph...")
@@ -278,11 +278,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         #     self.w_dropout = torch.nn.Dropout(0)
 
         # Apply BatchNorm
-        if is_train:
-            self.batch_norm = nn.BatchNorm1d(ARG.shared_hidden)
-            self.batch_norm.to(C_DEVICE)
-        else:
-            self.batch_norm = None
+        # if is_train:
+        #     self.batch_norm = nn.BatchNorm1d(ARG.shared_hidden)
+        #     self.batch_norm.to(C_DEVICE)
+        # else:
+        #     self.batch_norm = None
 
     def __init__(self, ):
         super(dlxDAGRNNModule, self).__init__()
@@ -294,7 +294,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         #     ARG.shared_embed,
         #     dropout=ARG.shared_dropoute
         # )
-        self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000)
+        self.word_embedding_module_decoder = nn.Linear(ARG.shared_hidden, 10000, bias=False)
 
         if ARG.shared_tie_weights:
             # Ties the weights, if this is possible

@@ -115,6 +115,21 @@ class MetaTrainer:
         # loss = self.child_trainer.get_loss(self.X_val.detach(), self.Y_val.detach())
         # print("Validation loss: ", loss)
 
+        if config['debug_weights_histogram']:
+            tx_writer.add_histogram('hist/embedding_encoder',
+                                    self.child_model.word_embedding_module_encoder.weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/embedding_decoder',
+                                    self.child_model.word_embedding_module_decoder.weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/w_input_to_c',
+                                    self.child_model.w_input_to_c.weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/w_hidden_to_hidden',
+                                    self.child_model.w_previous_hidden_to_h.weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/sample_h_weight_sample',
+                                    self.child_model.h_weight_block2block[0][1].weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
+                                    self.child_model._h_weight_block2block[1].weight.detach().numpy(), -1)
+
+
         best_val_loss = np.inf
         biggest_gradient = 0.
 
@@ -189,16 +204,32 @@ class MetaTrainer:
                 print("Eval idx is: ", eval_idx, minibatch_offset, ARG.shared_max_step, self.X_train.size(1))
                 tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
 
+                biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
+                tx_writer.add_scalar('misc/max_gradient', biggest_gradient, current_epoch)
+
+                if config['debug_print_max_gradient']:
+                    print("Biggest gradient is:", biggest_gradient)
+
+                if config['debug_weights_histogram']:
+                    tx_writer.add_histogram('hist/embedding_encoder',
+                                            self.child_model.word_embedding_module_encoder.weight.detach().numpy(), current_epoch)
+                    tx_writer.add_histogram('hist/embedding_decoder',
+                                            self.child_model.word_embedding_module_decoder.weight.detach().numpy(), current_epoch)
+                    tx_writer.add_histogram('hist/w_input_to_c',
+                                            self.child_model.w_input_to_c.weight.detach().numpy(), current_epoch)
+                    tx_writer.add_histogram('hist/w_hidden_to_hidden',
+                                            self.child_model.w_previous_hidden_to_h.weight.detach().numpy(), current_epoch)
+                    tx_writer.add_histogram('hist/sample_h_weight_sample',
+                                            self.child_model._h_weight_hidden2block[0][1].detach().numpy(), current_epoch)
+                    tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
+                                            self.child_model._h_weight_hidden2block[0][1].detach().numpy(), current_epoch)
+
             if current_epoch > ARG.shared_decay_after:
                 new_lr = ARG.shared_lr * ( ARG.shared_decay**(current_epoch-ARG.shared_decay_after) )
                 print("Updating learning rate to ", new_lr)
                 self.child_trainer.update_lr(new_lr)
 
             is_best = loss < best_val_loss
-
-            biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
-            tx_writer.add_scalar('misc/max_gradient', biggest_gradient, current_epoch)
-            print("Biggest gradient is:" , biggest_gradient)
 
             self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
             # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
