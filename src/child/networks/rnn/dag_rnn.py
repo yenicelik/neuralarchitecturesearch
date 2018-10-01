@@ -12,7 +12,7 @@ from torch.autograd import Variable
 from src._training.debug_utils.rnn_debug import load_dataset
 from src.child.networks.rnn.Base import dlxRNNModelBase
 from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
-from src.child.networks.rnn.dropout_utils.variational_dropout import VariationalDropout
+from src.child.networks.rnn.dropout_utils.variational_dropout import VariationalDropout, _get_dropped_weights
 from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
 
 # Import all utils functions, as we're gonna need them
@@ -49,7 +49,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Calculate the c's
 
         c_t1 = self.w_input_to_c(inputx)
-        c_t2 = self.w_previous_hidden_to_c(hidden)
+        c_t2 = self.w_dropout(hidden) # TODO: Is this correctly applied?
+        c_t2 = self.w_previous_hidden_to_c(c_t2)
+
+        # Apply dropconnect here (for each input run)
 
         # Apply dropout if training
         # c_t1 = self.w_dropout(c_t1)
@@ -59,7 +62,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         c = self.sigmoid(tmp)
 
         h_t1 = self.w_input_to_h(inputx)
-        h_t2 = self.w_previous_hidden_to_h(hidden)
+        h_t2 = self.w_dropout(hidden) # TODO: Is this correctly applied?
+        h_t2 = self.w_previous_hidden_to_h(h_t2)
+
+        # Apply dropconnect here (for each input run)
 
         # Apply dropout if training
         # h_t1 = self.w_dropout(h_t1)
@@ -87,6 +93,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Calculate the c's
         tmp = self.c_weight_block2block[i][j](internal_hidden)
 
+        # It looks like there is no dropconnect here)
+
         # Apply dropout if training
         # tmp = self.w_dropout(tmp)
 
@@ -95,6 +103,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Calculate the hidden block output
         tmp = self.h_weight_block2block[i][j](internal_hidden)
         tmp = act_fun(tmp)
+
+        # It looks like there is no dropconnect here)
 
         # Apply dropout if training
         # tmp = self.w_dropout(tmp)
@@ -128,6 +138,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         )
 
         # Registering the parameters as variables
+        # The first return argument for each of the lists will be dropped out! (wdropout)
         self._h_weight_block2block = nn.ModuleList([self.h_weight_block2block[idx][jdx]
                                                     for idx in self.h_weight_block2block
                                                     for jdx in self.h_weight_block2block[idx]])
@@ -304,8 +315,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self._generate_block_weights()
 
         # These weights are only for the very first block
-        self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden, bias=False) # TODO: bias=False?
+        self.w_input_to_c = nn.Linear(ARG.shared_embed, ARG.shared_hidden, bias=False)
         self.w_input_to_h = nn.Linear(ARG.shared_embed, ARG.shared_hidden, bias=False)
+
+        # These are the ones that we apply dropconnect (wdrop) to!
         self.w_previous_hidden_to_c = nn.Linear(ARG.shared_hidden, ARG.shared_hidden, bias=False)
         self.w_previous_hidden_to_h = nn.Linear(ARG.shared_hidden, ARG.shared_hidden, bias=False)
 
@@ -338,6 +351,19 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :param X:
         :return:
         """
+
+        # This is not correctly implemented, because the weights will become zero after some time!
+        # Apply dropout to the weights!
+        # self.h_weight_hidden2block.weight = _get_dropped_weights(
+        #     self.h_weight_hidden2block.weight,
+        #     ARG.shared_wdrop,
+        #     self.training
+        # )
+        # self.c_weight_hidden2block.weight = _get_dropped_weights(
+        #     self.c_weight_hidden2block.weight,
+        #     self.training
+        # )
+
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
 
         batch_size = X.size(0)
