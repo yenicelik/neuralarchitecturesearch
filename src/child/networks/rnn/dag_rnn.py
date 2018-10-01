@@ -52,8 +52,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         c_t2 = self.w_previous_hidden_to_c(hidden)
 
         # Apply dropout if training
-        c_t1 = self.w_dropout(c_t1)
-        c_t2 = self.w_dropout(c_t2)
+        # c_t1 = self.w_dropout(c_t1)
+        # c_t2 = self.w_dropout(c_t2)
 
         tmp = c_t1 + c_t2
         c = self.sigmoid(tmp)
@@ -62,8 +62,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         h_t2 = self.w_previous_hidden_to_h(hidden)
 
         # Apply dropout if training
-        h_t1 = self.w_dropout(h_t1)
-        h_t2 = self.w_dropout(h_t2)
+        # h_t1 = self.w_dropout(h_t1)
+        # h_t2 = self.w_dropout(h_t2)
 
         tmp = h_t1 + h_t2
         tmp = act_fun(tmp)
@@ -88,7 +88,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         tmp = self.c_weight_block2block[i][j](internal_hidden)
 
         # Apply dropout if training
-        tmp = self.w_dropout(tmp)
+        # tmp = self.w_dropout(tmp)
 
         c = self.sigmoid(tmp)
 
@@ -97,7 +97,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         tmp = act_fun(tmp)
 
         # Apply dropout if training
-        tmp = self.w_dropout(tmp)
+        # tmp = self.w_dropout(tmp)
 
         t1 = torch.mul(c, tmp)
         t2 = torch.mul(1. - c, internal_hidden)
@@ -294,9 +294,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             "Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
-        # Spawn the variational dropout cell
+        # Spawn the variational dropout cell (used before the input, and after the output)
         self.var_dropout = VariationalDropout()
-        self.w_dropout = torch.nn.Dropout(ARG.shared_dropout)
+        # The dropout applied for each weight (TODO: should be drop-connect)
+        self.w_dropout = torch.nn.Dropout(ARG.shared_wdrop)
 
         self.sigmoid = torch.nn.Sigmoid()
 
@@ -348,11 +349,12 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         current_X = X[:, 0]
         embed = self.word_embedding_encoder(current_X)
 
-        # Apply dropout
+        # Apply dropout input
         embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
-
         hidden = self.cell(inputx=embed, hidden=None)
         logit = self.word_embedding_decoder(hidden)
+        # Apply dropout output
+        logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
         outputs.append(logit)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
@@ -360,12 +362,13 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             current_X = X[:, i]
             embed = self.word_embedding_encoder(current_X)
 
-            # Apply dropout
+            # Apply dropout input
             embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
             hidden = self.cell(inputx=embed, hidden=hidden)
             logit = hidden
 
+            # Apply dropout output
             logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
 
             logit = self.word_embedding_decoder(logit)
