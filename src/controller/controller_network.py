@@ -164,6 +164,8 @@ class ControllerLSTM(nn.Module):
         activations = []
         previous_blocks = []
 
+        dag_ops = []
+
         # Inputs and hidden should be sampled from zero
         self._reset_initial_states()
 
@@ -175,11 +177,11 @@ class ControllerLSTM(nn.Module):
         print("Outside initial cell")
         inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, 0)
         inputs = torch.argmax(inputs, dim=1, keepdim=False)
+        print("Activation outputs are: ", inputs)
+
+        dag_ops.append(inputs.item())
 
         for block_id in range(1, ARG.num_blocks):
-
-            print("Shape of input is: ", inputs.shape)
-            print(inputs)
 
             print("Block idx is: (block input) ", block_id)
             # First get the previous layer
@@ -187,6 +189,8 @@ class ControllerLSTM(nn.Module):
 
             # Need to pass logits through the embedding, so take argmax, right?
             inputs = torch.argmax(inputs, dim=1, keepdim=False)
+            print("Block outputs are: ", inputs)
+            dag_ops.append(inputs.item())
 
             print("Block idx is: (activation input) ", block_id)
             # Second get the activation
@@ -194,10 +198,10 @@ class ControllerLSTM(nn.Module):
 
             # Need to pass logits through the embedding again
             inputs = torch.argmax(inputs, dim=1, keepdim=False)
+            print("Activation outputs are: ", inputs)
+            dag_ops.append(inputs.item())
 
-
-        return inputs, hidden, cell
-
+        return dag_ops
 
     # def reset_parameters(self):
     #     init_range = 0.1
@@ -211,5 +215,6 @@ if __name__ == "__main__":
     print("Starting the controller lstm")
     controller = ControllerLSTM()
 
-    controller.forward(None)
+    dag = controller.forward(None)
+    print(dag)
 
