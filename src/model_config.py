@@ -15,6 +15,11 @@ net_arg = add_argument_group('Network')
 
 # Controller configuration
 net_arg.add_argument('--num_blocks', type=int, default=12) # 12 # TODO: implement one assert, if this is ok
+net_arg.add_argument('--controller_hid', type=int, default=100) #
+net_arg.add_argument('--controller_batch_size', type=int, default=1) #
+net_arg.add_argument('--num_tokens', type=int, default=4) #
+
+# Paramters for the controller
 
 # Shared parameters for the child controller
 net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
