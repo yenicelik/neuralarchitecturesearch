@@ -24,7 +24,6 @@ gc.enable()
 
 from torch import nn
 
-from src.child.training.train_wrapper_base import TrainWrapperBase
 from src.model_config import ARG
 
 # Debug tools
@@ -34,7 +33,7 @@ from src.preprocessor.text import Corpus, batchify
 from src.utils.debug_utils.tensorboard_tools import tx_writer, tx_counter
 
 
-class DAGTrainWrapper(TrainWrapperBase):
+class DAGTrainWrapper:
 
     def update_lr(self, lr):
         # Takes the optimizer, and the initial learning rate
@@ -43,8 +42,7 @@ class DAGTrainWrapper(TrainWrapperBase):
             print(param_group['lr'])
 
     def __init__(self, model):
-        super(TrainWrapperBase, self).__init__()
-
+        # super(self).__init__()
         self.model = model
 
         self.criterion = nn.CrossEntropyLoss()
@@ -169,13 +167,10 @@ class DAGTrainWrapper(TrainWrapperBase):
         """
             Trains the model on a certain dataset.
             The datasets have to be of the shape:
-
             X.size() <- (total_data_size, time_length, **data_size )
-
             --> Watch out! There should be a cutoff and padding amongst batches!
             --> The total data doesn't have to be the entire data, but can be just
                 the data size can be chosen
-
         :param X: The data
         :param Y: The shape
         :param log_offset: Only for logging! The offset at which we initialize the new child model

@@ -3,27 +3,20 @@
     We will use the RNN cell as this provides the right interface for the NAS we will later implement
 """
 
-import numpy as np
 import torch
 from torch import nn
-from torchviz import make_dot
-from torch.autograd import Variable
 
 from src._training.debug_utils.rnn_debug import load_dataset
-from src.child.networks.rnn.Base import dlxRNNModelBase
-from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
-from src.child.networks.rnn.dropout_utils.variational_dropout import VariationalDropout, _get_dropped_weights
-from src.child.networks.rnn.viz_utils.dag_to_graph import draw_network
+from src.child.rnn.Base import dlxRNNModelBase
+from src.child.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
+from src.child.rnn.dropout_utils.variational_dropout import VariationalDropout
 
 # Import all utils functions, as we're gonna need them
-from src.child.networks.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
-from src.child.networks.rnn.dag_utils.generate_weights import generate_weights
-from src.child.networks.rnn.dag_utils.identify_loose_ends import identify_loose_ends
-# from src.child.networks.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
-from src.config import C_DEVICE
+from src.child.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
+from src.child.rnn.dag_utils.generate_weights import generate_weights
+from src.child.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 
 from src.model_config import ARG
-
 
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
@@ -407,7 +400,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
 
 if __name__ == "__main__":
-    import src.child.training.dag_train_wrapper
+    import src.child.dag_train_wrapper
 
     print("Do a bunch of forward passes: ")
 
@@ -439,7 +432,7 @@ if __name__ == "__main__":
     # # for i in range(100):
     # #     model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
     child_model = dlxDAGRNNModule()
-    child_trainer = src.child.training.dag_train_wrapper.DAGTrainWrapper(child_model)
+    child_trainer = src.child.dag_train_wrapper.DAGTrainWrapper(child_model)
 
     dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
     dag_list = [int(x) for x in dag_description.split()]

@@ -12,10 +12,10 @@ import gc
 import shutil
 from torch.autograd import Variable
 
-import src.child.networks.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
-import src.child.training.dag_train_wrapper as dag_train_wrapper
+import src.child.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
+import src.child.train_wrapper as dag_train_wrapper
 from src.config import config, C_DEVICE
-from src._training.debug_utils.rnn_debug import print_batches, load_dataset
+from src._training.debug_utils.rnn_debug import load_dataset
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
 from src.utils.debug_utils.size_network import memory_usage_resource
