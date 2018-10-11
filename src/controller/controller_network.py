@@ -49,7 +49,6 @@ class ControllerLSTM(nn.Module):
         # We have one decoder for each block, and one for each activate
         # These can probably be tied together in an efficient manner
         for block_idx in range(1, ARG.num_blocks):
-
             # Decoder from the hidden state to the activation function
             self.decoders_activation[block_idx] = torch.nn.Linear(
                 ARG.controller_hid,
@@ -154,8 +153,9 @@ class ControllerLSTM(nn.Module):
 
     def get_intermediate_values_from_logits(self, logits):
 
-        print("Size of the input is: ", logits.size())
-        assert logits.size(0) == ARG.controller_batch_size, ("The logits do not have BATCH-NUMBER of entries", logits, ARG.batch_size)
+        # print("Size of the input is: ", logits.size())
+        assert logits.size(0) == ARG.controller_batch_size, (
+        "The logits do not have BATCH-NUMBER of entries", logits, ARG.batch_size)
         assert len(logits.size()), ("Logits are not 2-dimesnionally shaped!", logits.size())
 
         # TODO: is dim = the right dimension?
@@ -173,18 +173,23 @@ class ControllerLSTM(nn.Module):
         # TODO: the following line is unclear to me. What is this supposed to do?
         selected_log_probabilities = log_probabilities.gather(
             1,
-            Variable(action) # TODO: requires grad = False?
+            Variable(action)  # TODO: requires grad = False?
         )
         # We don't apply squeeze, because in the case of batch_size = 0, it just removes all dimensions
         # These are 2-dimensional, but we need to make these 1-dimensional by default
         selected_log_probabilities = selected_log_probabilities[:, 0]
         action = action[:, 0]
 
-        print("Action is: ", action)
-        print("Action size is: ", action.size())
+        # print("Action is: ", action)
+        # print("Action size is: ", action.size())
 
         # TODO: a bunch of assert statements on the sizes of the values
-
+        assert action.size(0) == ARG.controller_batch_size, (
+        "Batch size is not equal argument batch size! ", action.size(1), ARG.controller_batch_size)
+        assert selected_log_probabilities.size(0) == ARG.controller_batch_size, (
+        "Batch size is not equal argument batch size! ", selected_log_probabilities.size(0), ARG.controller_batch_size)
+        # assert entropy.size(1) == ARG.controller_batch_size, (
+        # "Batch size is not equal argument batch size! ", entropy.size(1), ARG.controller_batch_size)
 
         # We return the entropy, and the selected log probabilities
         return entropy, selected_log_probabilities, action
@@ -199,12 +204,10 @@ class ControllerLSTM(nn.Module):
         """
 
         # Have arrays for individual actions (to generate the string from this later)
-        activations = []
-        previous_blocks = []
-        entropy_history = []
-        reward_history = []
 
-        dag_ops = []
+        entropy_history = []
+        log_probability_history = []
+        dag_ops = []  # The actions sampled by the dag-creator
 
         # Inputs and hidden should be sampled from zero
         self._reset_initial_states()
@@ -216,46 +219,43 @@ class ControllerLSTM(nn.Module):
         # Do one pass through the first activation
         # print("Outside initial cell")
         inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, 0)
-        inputs = torch.argmax(inputs, dim=1, keepdim=False)
-        # print("Activation outputs are: ", inputs)
 
-        dag_ops.append(inputs.item())
+        # Pass the logits through the probability-passing function
+        entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
+        dag_ops.append(action.item())
+        entropy_history.append(entropy.item())
+        log_probability_history.append(selected_log_probabilities.item())
+
+        inputs = action
 
         for block_id in range(1, ARG.num_blocks):
-
             # print("Block idx is: (block input) ", block_id)
             # First get the previous layer
             inputs, hidden, cell = self.forward_block(inputs, hidden, cell, block_id)
 
             # Pass the logits through the probability-passing function
-            # self.get_intermediate_values_from_logits(logits=inputs)
+            entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
+            dag_ops.append(action.item())
+            entropy_history.append(entropy.item())
+            log_probability_history.append(selected_log_probabilities.item())
 
-            # Need to pass logits through the embedding, so take argmax, right?
-            inputs = torch.argmax(inputs, dim=1, keepdim=False)
+            inputs = action
 
-            # print("Block outputs are: ", inputs)
-            dag_ops.append(inputs.item())
-
-            # print("Block idx is: (activation input) ", block_id)
             # Second get the activation
             inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, block_id)
 
             # Pass the logits through the finder function
-            self.get_intermediate_values_from_logits(logits=inputs)
+            entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
+            dag_ops.append(action.item())
+            entropy_history.append(entropy.item())
+            log_probability_history.append(selected_log_probabilities.item())
 
-            # Need to pass logits through the embedding again
-            inputs = torch.argmax(inputs, dim=1, keepdim=False)
-            # print("Activation outputs are: ", inputs)
-            dag_ops.append(inputs.item())
+            inputs = action
 
-        return dag_ops
+        # Assert the size of the ops to be number of 2*blocks + 1 (the +1 comes from the very first sample)
+        assert len(dag_ops) == 2*ARG.num_blocks - 1, ("Not matching number of blocks: ", len(dag_ops), 2*ARG.num_blocks - 1)
 
-    # def reset_parameters(self):
-    #     init_range = 0.1
-    #     for param in self.parameters():
-    #         param.data.uniform_(-init_range, init_range)
-    #     for decoder in self.decoders:
-    #         decoder.bias.data.fill_(0)
+        return dag_ops, entropy_history, log_probability_history
 
 
 if __name__ == "__main__":
@@ -264,5 +264,5 @@ if __name__ == "__main__":
 
     for i in range(10):
         dag = controller.forward(None)
+        # print(len(dag))
         print(dag)
-
