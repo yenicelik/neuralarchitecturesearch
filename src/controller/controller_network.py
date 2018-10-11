@@ -175,13 +175,19 @@ class ControllerLSTM(nn.Module):
             1,
             Variable(action) # TODO: requires grad = False?
         )
+        # We don't apply squeeze, because in the case of batch_size = 0, it just removes all dimensions
+        # These are 2-dimensional, but we need to make these 1-dimensional by default
+        selected_log_probabilities = selected_log_probabilities[:, 0]
+        action = action[:, 0]
 
-        print("action is: ", action)
+        print("Action is: ", action)
+        print("Action size is: ", action.size())
 
-        # action = torch.distributions.multinomial(probabilities)
-        # selected_log_probabilities = log_probabilities.gather()
+        # TODO: a bunch of assert statements on the sizes of the values
 
-        # return probabilities, entropy
+
+        # We return the entropy, and the selected log probabilities
+        return entropy, selected_log_probabilities, action
 
     def forward(self, inputs):
         """
