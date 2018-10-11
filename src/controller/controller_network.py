@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 from src.model_config import ARG
 
@@ -151,6 +152,37 @@ class ControllerLSTM(nn.Module):
 
         return logits, new_hidden, new_cell
 
+    def get_intermediate_values_from_logits(self, logits):
+
+        print("Size of the input is: ", logits.size())
+        assert logits.size(0) == ARG.controller_batch_size, ("The logits do not have BATCH-NUMBER of entries", logits, ARG.batch_size)
+        assert len(logits.size()), ("Logits are not 2-dimesnionally shaped!", logits.size())
+
+        # TODO: is dim = the right dimension?
+        probabilities = F.softmax(logits, dim=1)
+        log_probabilities = F.log_softmax(logits, dim=1)
+
+        # Calculate entropies
+        entropy = -torch.sum(
+            log_probabilities * probabilities,
+            dim=1, keepdim=False
+        )
+
+        action = probabilities.multinomial(num_samples=1).data
+
+        # TODO: the following line is unclear to me. What is this supposed to do?
+        selected_log_probabilities = log_probabilities.gather(
+            1,
+            Variable(action) # TODO: requires grad = False?
+        )
+
+        print("action is: ", action)
+
+        # action = torch.distributions.multinomial(probabilities)
+        # selected_log_probabilities = log_probabilities.gather()
+
+        # return probabilities, entropy
+
     def forward(self, inputs):
         """
             Do one forward pass with the sampler.
@@ -163,6 +195,8 @@ class ControllerLSTM(nn.Module):
         # Have arrays for individual actions (to generate the string from this later)
         activations = []
         previous_blocks = []
+        entropy_history = []
+        reward_history = []
 
         dag_ops = []
 
@@ -174,31 +208,38 @@ class ControllerLSTM(nn.Module):
         cell = self.initial_cell
 
         # Do one pass through the first activation
-        print("Outside initial cell")
+        # print("Outside initial cell")
         inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, 0)
         inputs = torch.argmax(inputs, dim=1, keepdim=False)
-        print("Activation outputs are: ", inputs)
+        # print("Activation outputs are: ", inputs)
 
         dag_ops.append(inputs.item())
 
         for block_id in range(1, ARG.num_blocks):
 
-            print("Block idx is: (block input) ", block_id)
+            # print("Block idx is: (block input) ", block_id)
             # First get the previous layer
             inputs, hidden, cell = self.forward_block(inputs, hidden, cell, block_id)
 
+            # Pass the logits through the probability-passing function
+            # self.get_intermediate_values_from_logits(logits=inputs)
+
             # Need to pass logits through the embedding, so take argmax, right?
             inputs = torch.argmax(inputs, dim=1, keepdim=False)
-            print("Block outputs are: ", inputs)
+
+            # print("Block outputs are: ", inputs)
             dag_ops.append(inputs.item())
 
-            print("Block idx is: (activation input) ", block_id)
+            # print("Block idx is: (activation input) ", block_id)
             # Second get the activation
             inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, block_id)
 
+            # Pass the logits through the finder function
+            self.get_intermediate_values_from_logits(logits=inputs)
+
             # Need to pass logits through the embedding again
             inputs = torch.argmax(inputs, dim=1, keepdim=False)
-            print("Activation outputs are: ", inputs)
+            # print("Activation outputs are: ", inputs)
             dag_ops.append(inputs.item())
 
         return dag_ops
@@ -215,6 +256,7 @@ if __name__ == "__main__":
     print("Starting the controller lstm")
     controller = ControllerLSTM()
 
-    dag = controller.forward(None)
-    print(dag)
+    for i in range(10):
+        dag = controller.forward(None)
+        print(dag)
 
