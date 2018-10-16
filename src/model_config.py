@@ -12,6 +12,7 @@ C_CHILD_HIDDEN_SIZE = 0
 
 # NETWORK
 net_arg = add_argument_group('Network')
+learn_arg = add_argument_group('Learning') # Learning
 
 # Controller configuration
 net_arg.add_argument('--num_blocks', type=int, default=12) # 12 # TODO: implement one assert, if this is ok
@@ -20,6 +21,10 @@ net_arg.add_argument('--controller_batch_size', type=int, default=1) #
 net_arg.add_argument('--num_tokens', type=int, default=4) #
 
 # Paramters for the controller
+net_arg.add_argument('--controller_max_step', type=int, default=2000) # TODO: what is this value again?
+learn_arg.add_argument('--ema_baseline_decay', type=int, default=0.99)
+learn_arg.add_argument('--controller_lr', type=float, default=3.5e-4,
+                       help="will be ignored if --controller_lr_cosine=True")
 
 # Shared parameters for the child controller
 net_arg.add_argument('--shared_wdrop', type=float, default=0.5)
@@ -37,7 +42,6 @@ net_arg.add_argument('--shared_tie_weights', type=int, default=1, help="Non-zero
 net_arg.add_argument('--shared_grad_clip', type=float, default=0.25)
 
 # TRAINING / TEST
-learn_arg = add_argument_group('Learning')
 learn_arg.add_argument('--mode', type=str, default='train',
                        choices=['train', 'derive', 'test'],
                        help='train: Training ENAS, derive: Deriving Architectures')

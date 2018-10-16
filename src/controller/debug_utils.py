@@ -21,11 +21,19 @@ def example_loss(inp_dag):
     assert len(inp_dag) == 2*ARG.num_blocks-1, ("Length not as specified in the config module")
     assert len(inp_dag) == len(best_dag_list)
 
-    print("Getting loss")
+    # print("Getting loss")
     best_dag = np.asarray(best_dag_list)
     inp_dag = np.asarray(inp_dag)
 
     return np.sum(np.abs(inp_dag - best_dag)) / len(inp_dag)
+
+def example_reward(inp_dag):
+    """
+        Computes an example reward based on the example loss
+    :param inp_dag:
+    :return:
+    """
+    return 80./example_loss(inp_dag)
 
 if __name__ == "__main__":
     print("Starting to get loss")

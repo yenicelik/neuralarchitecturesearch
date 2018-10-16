@@ -159,8 +159,8 @@ class ControllerLSTM(nn.Module):
         assert len(logits.size()), ("Logits are not 2-dimesnionally shaped!", logits.size())
 
         # TODO: is dim = the right dimension?
-        probabilities = F.softmax(logits, dim=1)
-        log_probabilities = F.log_softmax(logits, dim=1)
+        probabilities = F.softmax(logits, dim=-1)
+        log_probabilities = F.log_softmax(logits, dim=-1)
 
         # Calculate entropies
         entropy = -torch.sum(
@@ -177,6 +177,7 @@ class ControllerLSTM(nn.Module):
         )
         # We don't apply squeeze, because in the case of batch_size = 0, it just removes all dimensions
         # These are 2-dimensional, but we need to make these 1-dimensional by default
+
         selected_log_probabilities = selected_log_probabilities[:, 0]
         action = action[:, 0]
 
@@ -194,16 +195,29 @@ class ControllerLSTM(nn.Module):
         # We return the entropy, and the selected log probabilities
         return entropy, selected_log_probabilities, action
 
-    def forward(self, inputs):
+    def forward(self, input):
         """
             Do one forward pass with the sampler.
             Apply the forward and apply a decoder
-        :param input:
+        :param input: Are completely ignored!
         :param hidden:
         :return:
         """
 
         # Have arrays for individual actions (to generate the string from this later)
+
+        # Pre-determine the size of these tensors, then write to them.
+        # (This way, we shouldn't get weird errors about not being able to differentiate)
+        # steps = 2*ARG.num_blocks - 1
+
+        # Initialize the tensors
+        # entropy_history = torch.ones(())
+        # log_probability_history = torch.ones(())
+        # dag_ops = torch.ones(())
+
+        # entropy_history = entropy_history.new_empty((1, steps))
+        # log_probability_history = log_probability_history.new_empty((1, steps))
+        # dag_ops = dag_ops.new_empty((1, steps))
 
         entropy_history = []
         log_probability_history = []
@@ -213,6 +227,7 @@ class ControllerLSTM(nn.Module):
         self._reset_initial_states()
 
         inputs = self.initial_input
+        # Only take the initial_hidden if not trainer before
         hidden = self.initial_hidden
         cell = self.initial_cell
 
@@ -222,38 +237,71 @@ class ControllerLSTM(nn.Module):
 
         # Pass the logits through the probability-passing function
         entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
-        dag_ops.append(action.item())
-        entropy_history.append(entropy.item())
-        log_probability_history.append(selected_log_probabilities.item())
+        # dag_ops[:, 0] = action
+        # entropy_history[:, 0] = entropy
+        # log_probability_history[:, 0] = selected_log_probabilities
+
+        dag_ops.append(action)
+        entropy_history.append(entropy)
+        log_probability_history.append(selected_log_probabilities)
 
         inputs = action
 
         for block_id in range(1, ARG.num_blocks):
             # print("Block idx is: (block input) ", block_id)
-            # First get the previous layer
+
+            #############################
+            # First get the previous block id
+            #############################
             inputs, hidden, cell = self.forward_block(inputs, hidden, cell, block_id)
 
             # Pass the logits through the probability-passing function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
-            dag_ops.append(action.item())
-            entropy_history.append(entropy.item())
-            log_probability_history.append(selected_log_probabilities.item())
+
+            # dag_ops[:, 2*block_id-1] = action
+            # entropy_history[:, 2*block_id-1] = entropy
+            # log_probability_history[:, 2*block_id-1] = selected_log_probabilities
+            #
+            dag_ops.append(action)
+            entropy_history.append(entropy)
+            log_probability_history.append(selected_log_probabilities)
 
             inputs = action
 
+            # print("Inputs have size: ", inputs.size())
+
+            #############################
             # Second get the activation
+            #############################
             inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, block_id)
 
             # Pass the logits through the finder function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
-            dag_ops.append(action.item())
-            entropy_history.append(entropy.item())
-            log_probability_history.append(selected_log_probabilities.item())
+
+            # dag_ops[:, 2*block_id] = action
+            # entropy_history[:, 2*block_id] = entropy
+            # log_probability_history[:, 2*block_id] = selected_log_probabilities
+            #
+            dag_ops.append(action)
+            entropy_history.append(entropy)
+            log_probability_history.append(selected_log_probabilities)
 
             inputs = action
 
+            # print("Next Inputs have size: ", inputs.size())
+
+
         # Assert the size of the ops to be number of 2*blocks + 1 (the +1 comes from the very first sample)
         assert len(dag_ops) == 2*ARG.num_blocks - 1, ("Not matching number of blocks: ", len(dag_ops), 2*ARG.num_blocks - 1)
+        assert len(dag_ops) == len(entropy_history), ("Sizes don't match! ", len(dag), len(entropy_history))
+        assert len(dag_ops) == len(log_probability_history), ("Sizes don't match!", len(dag), len(selected_log_probabilities))
+
+        # print("The entropy history, and log probability increase in size: ")
+        # print(entropy.item())
+        # print(selected_log_probabilities.item())
+        # print(len(entropy_history))
+        # print(len(log_probability_history))
+        # print(len(dag_ops))
 
         return dag_ops, entropy_history, log_probability_history
 
@@ -262,7 +310,20 @@ if __name__ == "__main__":
     print("Starting the controller lstm")
     controller = ControllerLSTM()
 
-    for i in range(10):
-        dag = controller.forward(None)
-        # print(len(dag))
-        print(dag)
+    # for i in range(10):
+    #     dag = controller.forward(None)
+    #     # print(len(dag))
+    #     print(dag)
+
+    # Redugint the problem to the most basic example
+
+    # Checking for backward
+    dag_ops, entropy_history, log_probability_history = controller.forward(input=None)
+    log_probabilities = torch.cat(log_probability_history)
+    loss = log_probabilities
+    loss = loss.sum()
+    print(loss)
+    loss.backward()
+
+
+
