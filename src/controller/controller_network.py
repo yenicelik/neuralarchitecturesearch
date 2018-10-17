@@ -23,6 +23,8 @@ class ControllerLSTM(nn.Module):
         # Simply have one encoder for each individual sequence item
         self.encoders_activation = {}
         self.encoders_block = {}
+
+        # TODO: Probably there is a better way to do this
         # We don't have an encoder for the very first item!
         for block_idx in range(1, ARG.num_blocks):
             # Embedding from activation function to encoder
@@ -63,7 +65,7 @@ class ControllerLSTM(nn.Module):
                 bias=False
             )
 
-        # Tying weights?
+        # Tying weights? TODO: do we need to tie weights?
 
     def _reset_parameters(self):
         """
@@ -116,7 +118,7 @@ class ControllerLSTM(nn.Module):
         :param block_id:
         :return:
         """
-        # Encode (if not block_id == 0)
+        # Encode the input through an embedding, if it's not the initial random inpput
         if block_id == 0:
             embedded = inputs
         else:
@@ -140,7 +142,7 @@ class ControllerLSTM(nn.Module):
         :param block_id:
         :return:
         """
-        # Is always embedded
+        # Is always embedded (because we start from odd numbers
         embedded = self.encoders_activation[block_id](inputs)
 
         # Run through LSTM
@@ -153,9 +155,8 @@ class ControllerLSTM(nn.Module):
 
     def get_intermediate_values_from_logits(self, logits):
 
-        # print("Size of the input is: ", logits.size())
         assert logits.size(0) == ARG.controller_batch_size, (
-        "The logits do not have BATCH-NUMBER of entries", logits, ARG.batch_size)
+            "The logits do not have BATCH-NUMBER of entries", logits, ARG.batch_size)
         assert len(logits.size()), ("Logits are not 2-dimesnionally shaped!", logits.size())
 
         # TODO: is dim = the right dimension?
@@ -187,16 +188,12 @@ class ControllerLSTM(nn.Module):
         selected_log_probabilities = selected_log_probabilities[:, 0]
         action = action[:, 0]
 
-        # print("Action is: ", action)
-        # print("Action size is: ", action.size())
-
         # TODO: a bunch of assert statements on the sizes of the values
         assert action.size(0) == ARG.controller_batch_size, (
-        "Batch size is not equal argument batch size! ", action.size(1), ARG.controller_batch_size)
+            "Batch size is not equal argument batch size! ", action.size(1), ARG.controller_batch_size)
         assert selected_log_probabilities.size(0) == ARG.controller_batch_size, (
-        "Batch size is not equal argument batch size! ", selected_log_probabilities.size(0), ARG.controller_batch_size)
-        # assert entropy.size(1) == ARG.controller_batch_size, (
-        # "Batch size is not equal argument batch size! ", entropy.size(1), ARG.controller_batch_size)
+            "Batch size is not equal argument batch size! ", selected_log_probabilities.size(0),
+            ARG.controller_batch_size)
 
         # We return the entropy, and the selected log probabilities
         return entropy, selected_log_probabilities, action
@@ -210,31 +207,16 @@ class ControllerLSTM(nn.Module):
         :return:
         """
 
-        # Have arrays for individual actions (to generate the string from this later)
-
-        # Pre-determine the size of these tensors, then write to them.
-        # (This way, we shouldn't get weird errors about not being able to differentiate)
-        # steps = 2*ARG.num_blocks - 1
-
-        # Initialize the tensors
-        # entropy_history = torch.ones(())
-        # log_probability_history = torch.ones(())
-        # dag_ops = torch.ones(())
-
-        # entropy_history = entropy_history.new_empty((1, steps))
-        # log_probability_history = log_probability_history.new_empty((1, steps))
-        # dag_ops = dag_ops.new_empty((1, steps))
-
         entropy_history = []
         log_probability_history = []
-        dag_ops = []  # The actions sampled by the dag-creator
+        dag_ops = []
 
         # Inputs and hidden should be sampled from zero
         self._reset_initial_states()
 
         inputs = self.initial_input
-        # Only take the initial_hidden if not trainer before
-        hidden = self.initial_hidden
+        # TODO: Only take the initial_hidden if not trained before #  Else this should be passed on, no?
+        hidden = self.initial_hidden # This copies the weights, and modifies them, so it's fine
         cell = self.initial_cell
 
         # Do one pass through the first activation
@@ -312,14 +294,14 @@ class ControllerLSTM(nn.Module):
             for x in self.parameters():
                 print(x)
 
-
             # print("Next Inputs have size: ", inputs.size())
 
-
         # Assert the size of the ops to be number of 2*blocks + 1 (the +1 comes from the very first sample)
-        assert len(dag_ops) == 2*ARG.num_blocks - 1, ("Not matching number of blocks: ", len(dag_ops), 2*ARG.num_blocks - 1)
+        assert len(dag_ops) == 2 * ARG.num_blocks - 1, (
+        "Not matching number of blocks: ", len(dag_ops), 2 * ARG.num_blocks - 1)
         assert len(dag_ops) == len(entropy_history), ("Sizes don't match! ", len(dag), len(entropy_history))
-        assert len(dag_ops) == len(log_probability_history), ("Sizes don't match!", len(dag), len(selected_log_probabilities))
+        assert len(dag_ops) == len(log_probability_history), (
+        "Sizes don't match!", len(dag), len(selected_log_probabilities))
 
         # print("The entropy history, and log probability increase in size: ")
         # print(entropy.item())
@@ -349,6 +331,3 @@ if __name__ == "__main__":
     loss = loss.sum()
     print(loss)
     loss.backward()
-
-
-
