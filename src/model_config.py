@@ -21,7 +21,7 @@ net_arg.add_argument('--controller_batch_size', type=int, default=1) #
 net_arg.add_argument('--num_tokens', type=int, default=4) #
 
 # Paramters for the controller
-net_arg.add_argument('--controller_max_step', type=int, default=10000) # TODO: actually 2000
+net_arg.add_argument('--controller_max_step', type=int, default=1000) # TODO: actually 2000
 learn_arg.add_argument('--ema_baseline_decay', type=int, default=0.95)
 learn_arg.add_argument('--discount', type=float, default=1.0)
 learn_arg.add_argument('--controller_lr', type=float, default=3.5e-4, help="will be ignored if --controller_lr_cosine=True")

@@ -16,7 +16,7 @@ from src.child.rnn.dropout_utils.variational_dropout import VariationalDropout
 from src.child.rnn.dag_utils.activation_function import get_activation_function
 from src.child.rnn.dag_utils.generate_weights import generate_weights
 from src.child.rnn.viz_utils.viz_utils import _graph_setup, _graph_print_blocks, \
-    _graph_add_edge_activation, _graph_add_edge_block, _graph_add_final_block, _graph_save_to_png
+    _graph_add_edge_activation, _graph_add_edge_initial, _graph_add_final_block, _graph_save_to_png
 from src.child.rnn.dag_utils.identify_loose_ends import identify_loose_ends
 
 from src.model_config import ARG
@@ -166,7 +166,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             act_fun=act_f
         )
 
-        _graph_add_edge(GEN_GRAPH, dag, graph)
+        _graph_add_edge_initial(GEN_GRAPH, dag, graph)
 
         # Now apply the ongoing operations
         # We start array-indexing with 1, because block 0 refers to the input!

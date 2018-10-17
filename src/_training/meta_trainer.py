@@ -8,13 +8,13 @@
         dag_description = "1 0 3 0 1 1 2 3 0"
 """
 import os
-import random
 import gc
 import shutil
 import torch
 import numpy as np
 from torch.autograd import Variable
 
+from src.MetaTrainerBase import MetaTrainerBase
 from src.child.rnn import dag_rnn# .dlxDAGRNNModule
 import src.child.train_wrapper as dag_train_wrapper
 from src.config import config, C_DEVICE
@@ -33,71 +33,13 @@ def _print_to_std_memory_logs(identifier):
     if config['debug_memory']:
         print("Memory usage P{}: ".format(identifier), memory_usage_resource())
 
-class MetaTrainer:
-
-    def _save_child_model(self, is_best, loss, epoch, dag, filename):
-
-        full_path = config['model_savepath'] + filename.replace(" ", "_") + \
-                    "_n" + self.nonce + ".torchsave"
-
-        print("Saving child model!", full_path)
-
-        save_checkpoint = {
-            'epoch': epoch,
-            'dag': dag,
-            'state_dict': self.child_model.state_dict(),
-            'loss': loss,
-            'optimizer': self.child_trainer.optimizer.state_dict(),
-            'is_best': is_best
-        }
-
-        print("Child model saved to: ", full_path)
-
-        torch.save(save_checkpoint, full_path)
-
-        if is_best:
-            print("Copying model to the best copy")
-            new_path = full_path + "_n" + str(random.randint(1, 7)) + "pth.tar"
-            shutil.copyfile(full_path, new_path)
-
-    def _load_child_model(self, model_path):
-
-        full_path = config['model_savepath'] + model_path
-
-        if os.path.isfile(full_path):
-            print("=> loading checkpoint ", full_path)
-            checkpoint = torch.load(full_path)
-            self.child_model.load_state_dict(checkpoint['state_dict'])
-            self.child_trainer.optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loading checkpoint successful! ")
-        else:
-            print("=> no checkpoint found at ", full_path)
-
-    def _write_to_log_histograms(self):
-        """
-            Write the weights as a histogram to the tx_writer
-            (which is the tensorboard writer)
-        :return:
-        """
-        if config['debug_weights_histogram']:
-            tx_writer.add_histogram('hist/embedding_encoder',
-                                    self.child_model.word_embedding_module_encoder
-                                    .weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/embedding_decoder',
-                                    self.child_model.word_embedding_module_decoder
-                                    .weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/w_input_to_c',
-                                    self.child_model.w_input_to_c
-                                    .weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/w_hidden_to_hidden',
-                                    self.child_model.w_previous_hidden_to_h
-                                    .weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/sample_h_weight_sample',
-                                    self.child_model.h_weight_block2block[0][1]
-                                    .weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
-                                    self.child_model._h_weight_block2block[1]
-                                    .weight.detach().numpy(), -1)
+class MetaTrainer(MetaTrainerBase):
+    """
+        The main trainer object.
+        This script covers the logic to iteratively
+            train the child model
+            and train the controller model
+    """
 
     def __init__(self, X_train, Y_train, X_val, Y_val, X_test, Y_test):
         """
@@ -111,7 +53,7 @@ class MetaTrainer:
         :param X_test:
         :param Y_test:
         """
-        self.nonce = str(random.randint(1, 10000))
+        super(MetaTrainer, self).__init__()
 
         self.X_train = Variable(X_train)
         self.Y_train = Variable(Y_train)
@@ -119,6 +61,8 @@ class MetaTrainer:
         self.Y_val = Variable(Y_val)
         self.X_test = Variable(X_test)
         self.Y_test = Variable(Y_test)
+
+        # Spawn one controller model
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
@@ -139,6 +83,7 @@ class MetaTrainer:
         :return:
         """
         # TODO: Implement this in the child wrapper!
+        import random
         return random.random()
 
 
@@ -253,17 +198,17 @@ if __name__ == "__main__":
     M = DATA.size(0)
     print("So many samples!")
 
-    train_off = round(M * (11. / 12))
-    val_off = round(M * (1. / 12))
+    TRAIN_OFF = round(M * (11. / 12))
+    VAL_OFF = round(M * (1. / 12))
 
     # The second size element should represent the embedding
     # This is needed for the crossentropy loss function
-    X_train = DATA[:train_off]
-    Y_train = TARGET[:train_off]
-    X_val = DATA[train_off:train_off + val_off]
-    Y_val = TARGET[train_off:train_off + val_off]
-    X_test = DATA[train_off + val_off:]
-    Y_test = TARGET[train_off + val_off:]
+    X_train = DATA[:TRAIN_OFF]
+    Y_train = TARGET[:TRAIN_OFF]
+    X_val = DATA[TRAIN_OFF:TRAIN_OFF + VAL_OFF]
+    Y_val = TARGET[TRAIN_OFF:TRAIN_OFF + VAL_OFF]
+    X_test = DATA[TRAIN_OFF + VAL_OFF:]
+    Y_test = TARGET[TRAIN_OFF + VAL_OFF:]
 
     del DATA
     del TARGET

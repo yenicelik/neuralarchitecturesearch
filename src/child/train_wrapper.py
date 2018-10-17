@@ -53,6 +53,7 @@ class DAGTrainWrapper:
         )
 
     # def predict(self, X, n=1):
+    # TODO: Something important to check is if the weights give good predictions!
     #     """
     #         Predicts the next n elements given past X elements.
     #

@@ -21,7 +21,7 @@ def _graph_setup(GEN_GRAPH):
     return None
 
 
-def _graph_add_edge_block(GEN_GRAPH, dag, graph):
+def _graph_add_edge_initial(GEN_GRAPH, dag, graph):
     """
         Adds an edge to the graph that we can print as output (to a .png file)
     :return:

@@ -256,10 +256,6 @@ class ControllerLSTM(nn.Module):
             # Pass the logits through the probability-passing function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
 
-            # dag_ops[:, 2*block_id-1] = action
-            # entropy_history[:, 2*block_id-1] = entropy
-            # log_probability_history[:, 2*block_id-1] = selected_log_probabilities
-            #
             dag_ops.append(action)
             entropy_history.append(entropy)
             log_probability_history.append(selected_log_probabilities)
@@ -280,10 +276,6 @@ class ControllerLSTM(nn.Module):
             # Pass the logits through the finder function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
 
-            # dag_ops[:, 2*block_id] = action
-            # entropy_history[:, 2*block_id] = entropy
-            # log_probability_history[:, 2*block_id] = selected_log_probabilities
-            #
             dag_ops.append(action)
             entropy_history.append(entropy)
             log_probability_history.append(selected_log_probabilities)
@@ -301,14 +293,7 @@ class ControllerLSTM(nn.Module):
         "Not matching number of blocks: ", len(dag_ops), 2 * ARG.num_blocks - 1)
         assert len(dag_ops) == len(entropy_history), ("Sizes don't match! ", len(dag), len(entropy_history))
         assert len(dag_ops) == len(log_probability_history), (
-        "Sizes don't match!", len(dag), len(selected_log_probabilities))
-
-        # print("The entropy history, and log probability increase in size: ")
-        # print(entropy.item())
-        # print(selected_log_probabilities.item())
-        # print(len(entropy_history))
-        # print(len(log_probability_history))
-        # print(len(dag_ops))
+        "Sizes don't match!", len(dag_ops), len(selected_log_probabilities))
 
         return dag_ops, entropy_history, log_probability_history
 
@@ -325,9 +310,9 @@ if __name__ == "__main__":
     # Redugint the problem to the most basic example
 
     # Checking for backward
-    dag_ops, entropy_history, log_probability_history = controller.forward(input=None)
-    log_probabilities = torch.cat(log_probability_history)
-    loss = log_probabilities
-    loss = loss.sum()
-    print(loss)
-    loss.backward()
+    DAG_OPS, ENTROPY_HISTORY, LOG_PROBABILITY_HISTORY = controller.forward(input=None)
+    LOG_PROBABILITIES = torch.cat(LOG_PROBABILITY_HISTORY)
+    LOSS = LOG_PROBABILITIES
+    LOSS = LOSS.sum()
+    print(LOSS)
+    LOSS.backward()
