@@ -1,6 +1,7 @@
 """
-    This is one example RNN which uses the interface given by the Base class.
-    We will use the RNN cell as this provides the right interface for the NAS we will later implement
+    This is one example RNN which uses the interface given by the Base class
+    We will use the RNN cell as this provides the right interface
+    for the NAS we will later implement
 """
 
 import torch
@@ -15,7 +16,6 @@ from src.child.rnn.dropout_utils.variational_dropout import VariationalDropout
 from src.child.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
 from src.child.rnn.dag_utils.generate_weights import generate_weights
 from src.child.rnn.dag_utils.identify_loose_ends import identify_loose_ends
-
 from src.model_config import ARG
 
 class dlxDAGRNNModule(dlxRNNModelBase):
@@ -23,7 +23,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         We don't need a backward pass, as this is implicitly computed by the forward pass
         -- Write tests if the backward pass actually optimizes the parameters
         The embedding functions are not embeddings per se.
-        -> These functions just allow for a linear transformation of the input shape to the hidden shape.
+        -> These functions just allow for a linear transformation
+          of the input shape to the hidden shape.
     """
 
     def _name(self):

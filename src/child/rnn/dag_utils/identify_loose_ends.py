@@ -19,13 +19,11 @@ def identify_loose_ends(dag, number_of_blocks):
     return loose_blocks
 
 if __name__ == "__main__":
+    # TODO: MOVE THIS INTO A TEST CASE
     print("Starting to identify the blocks")
-    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    DAG_DESCRIPTION = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
 
-    dag_list = [int(x) for x in dag_description.split()]
-    print(dag_list)
+    DAG_LIST = [int(x) for x in DAG_DESCRIPTION.split()]
+    print(DAG_LIST)
 
-    identify_loose_ends(dag_list, len(dag_list) // 2 + 1)
-
-    # TODO: write tests cases for this thing
-
+    identify_loose_ends(DAG_LIST, len(DAG_LIST) // 2 + 1)
