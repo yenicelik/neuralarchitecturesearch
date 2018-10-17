@@ -13,10 +13,14 @@ from src.child.rnn.dropout_utils.embedding_dropout import EmbeddingDropout
 from src.child.rnn.dropout_utils.variational_dropout import VariationalDropout
 
 # Import all utils functions, as we're gonna need them
-from src.child.rnn.dag_utils.activation_function import get_activation_function, _get_activation_function_name
+from src.child.rnn.dag_utils.activation_function import get_activation_function
 from src.child.rnn.dag_utils.generate_weights import generate_weights
+from src.child.rnn.viz_utils.viz_utils import _graph_setup, _graph_print_blocks, \
+    _graph_add_edge_activation, _graph_add_edge_block, _graph_add_final_block, _graph_save_to_png
 from src.child.rnn.dag_utils.identify_loose_ends import identify_loose_ends
+
 from src.model_config import ARG
+
 
 class dlxDAGRNNModule(dlxRNNModelBase):
     """
@@ -43,28 +47,16 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # Calculate the c's
 
         c_t1 = self.w_input_to_c(inputx)
-        c_t2 = self.w_dropout(hidden) # TODO: Is this correctly applied?
+        # TODO: Is this correctly applied? TODO: should probably be dropconnect
+        c_t2 = self.w_dropout(hidden)
         c_t2 = self.w_previous_hidden_to_c(c_t2)
-
-        # Apply dropconnect here (for each input run)
-
-        # Apply dropout if training
-        # c_t1 = self.w_dropout(c_t1)
-        # c_t2 = self.w_dropout(c_t2)
-
         tmp = c_t1 + c_t2
         c = self.sigmoid(tmp)
 
         h_t1 = self.w_input_to_h(inputx)
-        h_t2 = self.w_dropout(hidden) # TODO: Is this correctly applied?
+        # TODO: Is this correctly applied? TODO: should probably be dropconnect
+        h_t2 = self.w_dropout(hidden)
         h_t2 = self.w_previous_hidden_to_h(h_t2)
-
-        # Apply dropconnect here (for each input run)
-
-        # Apply dropout if training
-        # h_t1 = self.w_dropout(h_t1)
-        # h_t2 = self.w_dropout(h_t2)
-
         tmp = h_t1 + h_t2
         tmp = act_fun(tmp)
 
@@ -75,8 +67,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
     def _connect_block(self, internal_hidden, i, j, act_fun):
         """
+            # TODO: fix the indecies (as 0 is the one with the first output!
             Connects block i to block j (i->j)
-            The smallest block we can connect from is block 0! # TODO: fix the indecies (as 0 is the one with the first output!
+            The smallest block we can connect from is block 0!
                 h_j = c_j*f_{ij}{(W^h_{ij}*h_i)} + (1 - c_j)*h_i,
                     where c_j = \sigmoid{(W^c_{ij}*h_i)}
         :param block_output:
@@ -86,22 +79,11 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         """
         # Calculate the c's
         tmp = self.c_weight_block2block[i][j](internal_hidden)
-
-        # It looks like there is no dropconnect here)
-
-        # Apply dropout if training
-        # tmp = self.w_dropout(tmp)
-
         c = self.sigmoid(tmp)
 
         # Calculate the hidden block output
         tmp = self.h_weight_block2block[i][j](internal_hidden)
         tmp = act_fun(tmp)
-
-        # It looks like there is no dropconnect here)
-
-        # Apply dropout if training
-        # tmp = self.w_dropout(tmp)
 
         t1 = torch.mul(c, tmp)
         t2 = torch.mul(1. - c, internal_hidden)
@@ -109,15 +91,23 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         return t1 + t2
 
     def _reset_parameters(self):
+        """
+            This function resets the parameters to the initial weights.
+            This modifies the initial hidden variables, and all the other
+            network parameters.
+        :return:
+        """
         print("Resetting parameters to correct weights")
         init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
         for param in self.parameters():
             param.data.uniform_(-init_range, init_range)
-            # print(param.name, param.data)
-
-        # Reset parameters for the arrays
 
     def _generate_block_weights(self):
+        """
+            This function generates the weights, and assigns the
+            weights as the network parameters
+        :return:
+        """
 
         # Spawn all weights here (as these weights will be shared)
         self.h_weight_hidden2block, self.h_weight_block2block = generate_weights(
@@ -132,7 +122,6 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         )
 
         # Registering the parameters as variables
-        # The first return argument for each of the lists will be dropped out! (wdropout)
         self._h_weight_block2block = nn.ModuleList([self.h_weight_block2block[idx][jdx]
                                                     for idx in self.h_weight_block2block
                                                     for jdx in self.h_weight_block2block[idx]])
@@ -143,38 +132,31 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         self._h_weight_hidden2block = torch.nn.Parameter(self.h_weight_hidden2block.weight)
         self._c_weight_hidden2block = torch.nn.Parameter(self.c_weight_hidden2block.weight)
 
-        self.hidden = torch.nn.Parameter(torch.randn((ARG.shared_hidden,)),
-                               requires_grad=True)  # Has size (BATCH, TIMESTEP, SIZE)
+        # The following hidden parameters have size (BATCH, TIMESTEP, SIZE)
+        self.hidden = torch.nn.Parameter(
+            torch.randn((ARG.shared_hidden,)),
+            requires_grad=True
+        )
 
     def build_cell(self, inputx, hidden, dag, GEN_GRAPH=False):
         """
-            This function will be used as the cell right away, as pytorch has a dynamical computation graph
+            This function will be used as the cell right away,
+            as pytorch has a dynamical computation graph
 
-        :param description_string: The string which defines the cell of the unrolled RNN in the ENAS paper
+        :param description_string:
+            The string which defines the cell of the unrolled RNN in the ENAS paper
         :return:
         """
         # This is not needed for this example network (which uses LSTMs)
         assert isinstance(dag, list), ("DAG is not in the form of a list! ", dag)
-
-        if GEN_GRAPH:
-            import pygraphviz as pgv
-            graph = pgv.AGraph(directed=True, strict=True,
-                               fontname='Helvetica', arrowtype='open')  # not work?
-            for i in range(0, ARG.num_blocks):
-                graph.add_node("Block " + str(i), color='black', shape='box', style='filled', fillcolor='pink')
-
-        # print("Building cell")
+        graph = _graph_setup(GEN_GRAPH)
 
         # The following dictionary saves the partial of the individual blocks, so we can easily refer to these individual blocks
         partial_outputs = {}
 
-        # The first operation is an activation function
-        # print("Cell inputs to current block: ", 1)
-
+        # We manually unroll the first iteratoin of the loop
         def act_f(x):
             return get_activation_function(digit=dag[0], inp=x)
-
-        # TODO: fix the indices
 
         #######
         partial_outputs['0'] = self._connect_input(
@@ -183,13 +165,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             act_fun=act_f
         )
 
-        if GEN_GRAPH:
-            print(dag)
-            print(1, "Previous block: ", 0, ":: Activation: ", dag[0])
-            print("Activation: ", _get_activation_function_name(dag[0]))
-
-            graph.add_edge("Block " + str(0), "Block " + str(1),
-                           label=_get_activation_function_name(dag[0]))
+        _graph_add_edge(GEN_GRAPH, dag, graph)
 
         # Now apply the ongoing operations
         # We start array-indexing with 1, because block 0 refers to the input!
@@ -197,10 +173,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             current_block = i
             previous_block = dag[2 * i - 1]
             activation_op = dag[2 * i]
-
-            if GEN_GRAPH:
-                print(current_block, "Previous block: ", previous_block, " (", 2 * i - 1, ")", ":: Activation: ",
-                      activation_op)
+            _graph_print_blocks(GEN_GRAPH, current_block, previous_block, activation_op, i)
 
             def act_f(x):
                 return get_activation_function(digit=activation_op, inp=x)
@@ -213,39 +186,29 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                 act_fun=act_f
             )
 
-            # print("Previous block to current block: ", previous_block, current_block)
-
             assert partial_outputs[str(previous_block)].size() == previous_output.size(), ("Not the case!")
-            # print("Activation: ", _get_activation_function_name(activation_op))
 
-            if GEN_GRAPH:
-                graph.add_edge("Block " + str(previous_block), "Block " + str(current_block),
-                               label=_get_activation_function_name(activation_op))
+            _graph_add_edge_activation(GEN_GRAPH, current_block, previous_block, activation_op, graph)
 
-        # Identify the loose ends:
+        # Identify the loose ends :: Return the average of all the loose endgs
         loose_ends = identify_loose_ends(dag, ARG.num_blocks)
-
-        # Return the average of all the loose ends
         outputs = []
         for i in loose_ends:
             outputs.append(partial_outputs[str(i)][None, :])
-            if GEN_GRAPH:
-                graph.add_edge("Block " + str(i), "avg")
+            _graph_add_final_block(GEN_GRAPH, graph, i)
 
         averaged_output = torch.cat(outputs, 0)
 
         # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        output = torch.mean(averaged_output, dim=0) # partial_outputs[str(ARG.num_blocks - 1)]
+        output = torch.mean(averaged_output, dim=0)  # partial_outputs[str(ARG.num_blocks - 1)]
 
+        # TODO: need to implement batch normalization
         # if self.batch_norm is not None and ARG.use_batch_norm:
         #     output = output.transpose(-1, -2)
         #     output = self.batch_norm(output)
         #     output = output.transpose(-1, -2)
 
-        if GEN_GRAPH:
-            print("Printing graph...")
-            graph.layout(prog='dot')
-            graph.draw('./tmp/cell_viz.png')
+        _graph_save_to_png(GEN_GRAPH, graph)
 
         return output
 
@@ -296,7 +259,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             # Ties the weights, if this is possible
             print("Tying weights!")
             assert ARG.shared_embed == ARG.shared_hidden, (
-            "Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
+                "Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
         # Spawn the variational dropout cell (used before the input, and after the output)
