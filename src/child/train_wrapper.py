@@ -28,7 +28,7 @@ from src.model_config import ARG
 
 # Debug tools
 from src.preprocessor.text import Corpus, batchify
-# corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
+# CORPUS = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
 
 from src.utils.debug_utils.tensorboard_tools import tx_writer, tx_counter
 

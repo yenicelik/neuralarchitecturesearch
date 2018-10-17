@@ -71,7 +71,7 @@ def batchify(data, bsz, use_cuda):
     return data
 
 if __name__ == "__main__":
-    print("Starting corpus: ")
+    print("Starting CORPUS: ")
     corpus = Corpus("/Users/david/neuralarchitecturesearch/data/ptb/")
     print(corpus.test)
 

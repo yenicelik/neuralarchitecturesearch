@@ -21,10 +21,16 @@ net_arg.add_argument('--controller_batch_size', type=int, default=1) #
 net_arg.add_argument('--num_tokens', type=int, default=4) #
 
 # Paramters for the controller
-net_arg.add_argument('--controller_max_step', type=int, default=2000) # TODO: what is this value again?
-learn_arg.add_argument('--ema_baseline_decay', type=int, default=0.99)
-learn_arg.add_argument('--controller_lr', type=float, default=3.5e-4,
-                       help="will be ignored if --controller_lr_cosine=True")
+net_arg.add_argument('--controller_max_step', type=int, default=10000) # TODO: actually 2000
+learn_arg.add_argument('--ema_baseline_decay', type=int, default=0.95)
+learn_arg.add_argument('--discount', type=float, default=1.0)
+learn_arg.add_argument('--controller_lr', type=float, default=3.5e-4, help="will be ignored if --controller_lr_cosine=True")
+
+# TODO:
+learn_arg.add_argument('--tanh_c', type=float, default=2.5) # such that the controller explores more
+learn_arg.add_argument('--softmax_temperature', type=float, default=5.0) # such that
+
+
 
 # Shared parameters for the child controller
 net_arg.add_argument('--shared_wdrop', type=float, default=0.5)

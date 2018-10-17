@@ -25,6 +25,12 @@ def get_activation_function(digit, inp):
         raise Exception("The activation digit is not between 0 and 3! ", digit)
 
 def _get_activation_function_name(digit):
+    """
+        In the dag, each odd element refers to the activation function.
+        The following enumeration returns the name for the activation function.
+    :param digit:
+    :return:
+    """
     if digit == 0:
         return "tanh"
     elif digit == 1:

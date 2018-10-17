@@ -2,35 +2,43 @@
     This file includes the training, where we iteratively train
     1. the child model
     2. the controller (based on the loss of the child model)
+
+    Some possible DAG descriptions include:
+        dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
+        dag_description = "1 0 3 0 1 1 2 3 0"
 """
 import os
-import numpy as np
-
-import torch
 import random
 import gc
 import shutil
+import torch
+import numpy as np
 from torch.autograd import Variable
 
-import src.child.rnn.dag_rnn as dag_rnn #.dlxDAGRNNModule
+from src.child.rnn import dag_rnn# .dlxDAGRNNModule
 import src.child.train_wrapper as dag_train_wrapper
 from src.config import config, C_DEVICE
 from src._training.debug_utils.rnn_debug import load_dataset
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
 from src.utils.debug_utils.size_network import memory_usage_resource
-
 from src.utils.debug_utils.tensorboard_tools import tx_writer
 
-# random.seed(a=2)
+
+def _print_to_std_memory_logs(identifier):
+    """
+        Print memory usage to screen
+    :return:
+    """
+    if config['debug_memory']:
+        print("Memory usage P{}: ".format(identifier), memory_usage_resource())
 
 class MetaTrainer:
 
-    def save_child_model(self, is_best, loss, epoch, dag, filename):
+    def _save_child_model(self, is_best, loss, epoch, dag, filename):
 
-
-
-        full_path = config['model_savepath'] + filename.replace(" ", "_") + "_n" + self.nonce + ".torchsave"
+        full_path = config['model_savepath'] + filename.replace(" ", "_") + \
+                    "_n" + self.nonce + ".torchsave"
 
         print("Saving child model!", full_path)
 
@@ -52,7 +60,7 @@ class MetaTrainer:
             new_path = full_path + "_n" + str(random.randint(1, 7)) + "pth.tar"
             shutil.copyfile(full_path, new_path)
 
-    def load_child_model(self, model_path):
+    def _load_child_model(self, model_path):
 
         full_path = config['model_savepath'] + model_path
 
@@ -64,6 +72,32 @@ class MetaTrainer:
             print("=> loading checkpoint successful! ")
         else:
             print("=> no checkpoint found at ", full_path)
+
+    def _write_to_log_histograms(self):
+        """
+            Write the weights as a histogram to the tx_writer
+            (which is the tensorboard writer)
+        :return:
+        """
+        if config['debug_weights_histogram']:
+            tx_writer.add_histogram('hist/embedding_encoder',
+                                    self.child_model.word_embedding_module_encoder
+                                    .weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/embedding_decoder',
+                                    self.child_model.word_embedding_module_decoder
+                                    .weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/w_input_to_c',
+                                    self.child_model.w_input_to_c
+                                    .weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/w_hidden_to_hidden',
+                                    self.child_model.w_previous_hidden_to_h
+                                    .weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/sample_h_weight_sample',
+                                    self.child_model.h_weight_block2block[0][1]
+                                    .weight.detach().numpy(), -1)
+            tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
+                                    self.child_model._h_weight_block2block[1]
+                                    .weight.detach().numpy(), -1)
 
     def __init__(self, X_train, Y_train, X_val, Y_val, X_test, Y_test):
         """
@@ -86,104 +120,78 @@ class MetaTrainer:
         self.X_test = Variable(X_test)
         self.Y_test = Variable(Y_test)
 
-        # del X_train
-        # del Y_train
-        # del X_val
-        # del Y_val
-        # del X_test
-        # del Y_test
-
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
         self.child_model.to(C_DEVICE)
 
         self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
 
+    # Functions about accessing the controller
+    # (such that we have well handled setters and getters)
+
+    # Functions about accessing the child model
+    # (such that we have well handled setters and getters)
+
     def get_child_validation_loss(self):
-        # TODO: Implement
+        """
+            Gets the validation loss of the child network.
+            Will be moved to the child wrapper soon.
+        :return:
+        """
+        # TODO: Implement this in the child wrapper!
         return random.random()
 
+
     def train_controller_and_child(self):
-        # Setting up the trainers
-        # dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-        # # dag_description = "1 0 3 0 1 1 2 3 0"
-        # # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
-        #
-        # dag_list = [int(x) for x in dag_description.split()]
-        # self.child_model.overwrite_dag(dag_list)
-        #
-        # loss = self.child_trainer.get_loss(self.X_val.detach(), self.Y_val.detach())
-        # print("Validation loss: ", loss)
+        """
+            The main "king" function.
+            Calling this function should find the best model configuration,
+            and also have trained the weights for good immediate re-use
+        :return:
+        """
 
-        if config['debug_weights_histogram']:
-            tx_writer.add_histogram('hist/embedding_encoder',
-                                    self.child_model.word_embedding_module_encoder.weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/embedding_decoder',
-                                    self.child_model.word_embedding_module_decoder.weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/w_input_to_c',
-                                    self.child_model.w_input_to_c.weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/w_hidden_to_hidden',
-                                    self.child_model.w_previous_hidden_to_h.weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/sample_h_weight_sample',
-                                    self.child_model.h_weight_block2block[0][1].weight.detach().numpy(), -1)
-            tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
-                                    self.child_model._h_weight_block2block[1].weight.detach().numpy(), -1)
-
-
+        # List all local variables we're gonna be using
         best_val_loss = np.inf
         biggest_gradient = 0.
+        dag_description = "" # Initial dag description is empty!
+        dag_list = [] # Initial dag_list is empty
+
+        self._write_to_log_histograms()
 
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
-            for minibatch_offset in range(0, self.X_train.size(0), ARG.shared_max_step*ARG.batch_size):
+            for minibatch_offset in range(
+                    0, self.X_train.size(0), ARG.shared_max_step * ARG.batch_size):
 
-
-                print("Total memory used (MB): ", memory_usage_resource())
-
-                # for obj in gc.get_objects():
-                #     try:
-                #         if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-                #             print(type(obj), obj.size())
-                #     except:
-                #         pass
-                # exit(0)
+                _print_to_std_memory_logs(identifier="P0")
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-                # dag_description = "1 0 3 0 1 1 2 3 0"
-                # dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
                 dag_list = [int(x) for x in dag_description.split()]
 
-                if config['debug_memory']:
-                    print("Memory usage P1: ", memory_usage_resource())
+                _print_to_std_memory_logs(identifier="P1")
 
+                # TODO: write a wrapper function for this:
                 self.child_model.overwrite_dag(dag_list)
 
                 X_minibatch = self.X_train[
-                                  minibatch_offset:
-                                  minibatch_offset+ARG.shared_max_step*ARG.batch_size
-                              ].detach()
+                    minibatch_offset:
+                    minibatch_offset + ARG.shared_max_step * ARG.batch_size
+                ].detach()
                 Y_minibatch = self.Y_train[
-                                  minibatch_offset:
-                                  minibatch_offset + ARG.shared_max_step*ARG.batch_size
-                              ].detach()
+                    minibatch_offset:
+                    minibatch_offset + ARG.shared_max_step * ARG.batch_size
+                ].detach()
 
                 if config['debug_memory']:
                     print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
-
-                if config['debug_memory']:
-                    print("Memory usage P1: ", memory_usage_resource())
 
                 self.child_trainer.train(
                     X=X_minibatch.detach(),
                     Y=Y_minibatch.detach()
                 )
 
-                if config['debug_memory']:
-                    print("Memory usage P2: ", memory_usage_resource())
-
-                if config['debug_memory']:
-                    print("Memory usage P3: ", memory_usage_resource())
+                _print_to_std_memory_logs(identifier="P2")
 
                 # Choose random indices to feed in to validation loss getter
                 ranomd_indices = np.random.choice(
@@ -196,12 +204,17 @@ class MetaTrainer:
                         self.X_val[ranomd_indices].detach(),
                         self.Y_val[ranomd_indices].detach()
                     )
-                print("Validation loss: ", loss)
-                # loss = 0.0
 
-                eval_idx = (minibatch_offset // ARG.shared_max_step) \
-                           + max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
-                print("Eval idx is: ", eval_idx, minibatch_offset, ARG.shared_max_step, self.X_train.size(1))
+                # Some ugly stuff on logging
+                print("Validation loss: ", loss)
+                logging_epoch = max(current_epoch, current_epoch * (self.X_train.size(0) // ARG.shared_max_step))
+                eval_idx = (minibatch_offset // ARG.shared_max_step) + logging_epoch
+                print("Eval idx is: ",
+                      eval_idx,
+                      minibatch_offset,
+                      ARG.shared_max_step,
+                      self.X_train.size(1)
+                      )
                 tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
 
                 biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
@@ -210,58 +223,50 @@ class MetaTrainer:
                 if config['debug_print_max_gradient']:
                     print("Biggest gradient is:", biggest_gradient)
 
-                if config['debug_weights_histogram']:
-                    tx_writer.add_histogram('hist/embedding_encoder',
-                                            self.child_model.word_embedding_module_encoder.weight.detach().numpy(), current_epoch)
-                    tx_writer.add_histogram('hist/embedding_decoder',
-                                            self.child_model.word_embedding_module_decoder.weight.detach().numpy(), current_epoch)
-                    tx_writer.add_histogram('hist/w_input_to_c',
-                                            self.child_model.w_input_to_c.weight.detach().numpy(), current_epoch)
-                    tx_writer.add_histogram('hist/w_hidden_to_hidden',
-                                            self.child_model.w_previous_hidden_to_h.weight.detach().numpy(), current_epoch)
-                    tx_writer.add_histogram('hist/sample_h_weight_sample',
-                                            self.child_model._h_weight_hidden2block[0][1].detach().numpy(), current_epoch)
-                    tx_writer.add_histogram('hist/sample_h_weight_sample_identical',
-                                            self.child_model._h_weight_hidden2block[0][1].detach().numpy(), current_epoch)
+                self._write_to_log_histograms()
 
             if current_epoch > ARG.shared_decay_after:
-                new_lr = ARG.shared_lr * ( ARG.shared_decay**(current_epoch-ARG.shared_decay_after) )
+                new_lr = ARG.shared_lr * (
+                        ARG.shared_decay ** (current_epoch - ARG.shared_decay_after)
+                )
                 print("Updating learning rate to ", new_lr)
                 self.child_trainer.update_lr(new_lr)
 
             is_best = loss < best_val_loss
 
-            self.save_child_model(is_best=is_best, loss=loss, epoch=current_epoch, dag=dag_description, filename=dag_description)
+            self._save_child_model(
+                is_best=is_best,
+                loss=loss,
+                epoch=current_epoch,
+                dag=dag_description,
+                filename=dag_description
+            )
             # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
 
 
 if __name__ == "__main__":
+    # TODO: Put these functions into a testing suite?
     print("Starting to train the meta model")
-    # meta_trainer.train()
 
-    # train_off = 9000
-    # val_off = 1000
+    DATA, TARGET = load_dataset(dev=False, dev_size=5000)
 
-    data, target = load_dataset(dev=False, dev_size=5000)
-
-    m = data.size(0)
+    M = DATA.size(0)
     print("So many samples!")
 
-    train_off = round(m * (11./12))
-    val_off = round(m * (1./12))
+    train_off = round(M * (11. / 12))
+    val_off = round(M * (1. / 12))
 
     # The second size element should represent the embedding
     # This is needed for the crossentropy loss function
+    X_train = DATA[:train_off]
+    Y_train = TARGET[:train_off]
+    X_val = DATA[train_off:train_off + val_off]
+    Y_val = TARGET[train_off:train_off + val_off]
+    X_test = DATA[train_off + val_off:]
+    Y_test = TARGET[train_off + val_off:]
 
-    X_train = data[:train_off]
-    Y_train = target[:train_off]
-    X_val = data[train_off:train_off+val_off]
-    Y_val = target[train_off:train_off+val_off]
-    X_test = data[train_off+val_off:]
-    Y_test = target[train_off+val_off:]
-
-    del data
-    del target
+    del DATA
+    del TARGET
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -278,8 +283,7 @@ if __name__ == "__main__":
 
     # print("Input to the meta trainer is: ", data.size(), target.size())
 
-
-    meta_trainer = MetaTrainer(
+    META_TRAINER = MetaTrainer(
         X_train=X_train,
         Y_train=Y_train,
         X_val=X_val,
@@ -288,16 +292,10 @@ if __name__ == "__main__":
         Y_test=None
     )
 
-    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-    dag_list = [int(x) for x in dag_description.split()]
+    DAG_DESCRIPTION = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    DAG_LIST = [int(x) for x in DAG_DESCRIPTION.split()]
 
     print("Before creating the train controller and child!")
 
     # meta_trainer.train_controller_and_child()
-    meta_trainer.train_controller_and_child()
-
-    # As a test, run the train_child function with the batchloader)
-
-    # print(to_word)
-
-    # for i in data
+    META_TRAINER.train_controller_and_child()

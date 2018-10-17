@@ -5,6 +5,8 @@ import torch
 
 from torch.autograd import Variable
 
+from src.utils.debug_utils.tensorboard_tools import tx_writer
+
 from src.controller.controller_network import ControllerLSTM
 from src.controller.debug_utils import example_reward
 from src.model_config import ARG
@@ -34,6 +36,7 @@ class ControllerWrapper:
         entropy_history = []
         adv_history = []
         reward_history = []
+        loss_history = []
 
         # Gotta reset all the parameters here
         total_loss = 0.
@@ -51,7 +54,8 @@ class ControllerWrapper:
 
             # 2.nd: get the reward (by passing the validation data)
             reward = reward_function(dag_ops)
-            print("Reward is: ", reward)
+
+            print("Dag is. ", [x.item() for x in dag_ops])
 
             reward_history.append(reward)
 
@@ -69,20 +73,27 @@ class ControllerWrapper:
             # Need to convert log probability history
             # and entropy to torch variables!
             log_probabilities = torch.cat(log_probability_history)
-            loss = -log_probabilities*Variable(torch.FloatTensor([adv])) # TODO something fucked up with the formats here
-            loss = loss.sum() # Receiving the final loss
+            loss = -log_probabilities * Variable(
+                torch.FloatTensor([adv]))  # TODO something fucked up with the formats here
+            loss = loss.sum()  # Receiving the final loss
+            loss_history.append(loss)
 
-            print("Loss is. ", loss)
+            # Add the values to the tensorboard!
+            tx_writer.add_scalar('controller/val_loss', loss, step)
+            tx_writer.add_scalar('controller/reward', reward, step)
+            tx_writer.add_scalar('controller/advantage', adv, step)
 
             # 4.th: Apply the backprop state to the controller weights
             self.controller_optimizer.zero_grad()
             loss.backward()
             self.controller_optimizer.step()
 
+        print("Reward history: ", [x for x in reward_history])
+        print("Adv history: ", [x for x in adv_history])
+        print("Loss history: ", [x for x in loss_history])
 
 
 if __name__ == "__main__":
-
     # Let's spawn the controller
     controller = ControllerLSTM()
 

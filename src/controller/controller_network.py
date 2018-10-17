@@ -168,6 +168,12 @@ class ControllerLSTM(nn.Module):
             dim=1, keepdim=False
         )
 
+        print("Logits are: ")
+        print(logits)
+
+        print("Multimodals are: ")
+        print(probabilities)
+
         action = probabilities.multinomial(num_samples=1).data
 
         # TODO: the following line is unclear to me. What is this supposed to do?
@@ -235,6 +241,12 @@ class ControllerLSTM(nn.Module):
         # print("Outside initial cell")
         inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, 0)
 
+        print("Inputs are: ")
+        print(inputs)
+        print("Parameters are: ")
+        for x in self.parameters():
+            print(x)
+
         # Pass the logits through the probability-passing function
         entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
         # dag_ops[:, 0] = action
@@ -250,11 +262,15 @@ class ControllerLSTM(nn.Module):
         for block_id in range(1, ARG.num_blocks):
             # print("Block idx is: (block input) ", block_id)
 
+            print("Inputs are: ")
+            print(inputs)
             #############################
             # First get the previous block id
             #############################
             inputs, hidden, cell = self.forward_block(inputs, hidden, cell, block_id)
 
+            print("Inputs are: ")
+            print(inputs)
             # Pass the logits through the probability-passing function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
 
@@ -273,8 +289,12 @@ class ControllerLSTM(nn.Module):
             #############################
             # Second get the activation
             #############################
+            print("Inputs are: ")
+            print(inputs)
             inputs, hidden, cell = self.forward_activation(inputs, hidden, cell, block_id)
 
+            print("Inputs are: ")
+            print(inputs)
             # Pass the logits through the finder function
             entropy, selected_log_probabilities, action = self.get_intermediate_values_from_logits(logits=inputs)
 
@@ -287,6 +307,11 @@ class ControllerLSTM(nn.Module):
             log_probability_history.append(selected_log_probabilities)
 
             inputs = action
+
+            print("Parameters are: ")
+            for x in self.parameters():
+                print(x)
+
 
             # print("Next Inputs have size: ", inputs.size())
 

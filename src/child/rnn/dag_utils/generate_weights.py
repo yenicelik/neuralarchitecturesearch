@@ -5,12 +5,13 @@
 """
 
 import collections
-import torch
 from torch import nn
 
 def generate_weights(input_size, hidden_size, num_blocks):
     """
         This number 0 is reserved for the input.
+        Apart from that, we generate all possible cross sections
+        between the blocks of the neural cell graph.
     :param input_size:
     :param hidden_size:
     :param num_blocks:
@@ -20,17 +21,16 @@ def generate_weights(input_size, hidden_size, num_blocks):
     block2block = collections.defaultdict(dict)
 
     # TODO:!! Do we have one single one for all, or do we have different ones for each individual one?
-    # I think we have both. One is for when the last block used is "0"
-    # print("Generating the lienar connection between the previous hidden output, and the first block")
+    # This weight is used for the linear connection from the "x" input to the first block node
     hidde2firstblock = nn.Linear(
         in_features=input_size,
         out_features=hidden_size,
         bias=False
     )
 
+    # These weights are used as the lienar connetions between the individual blocks
     for idx in range(0, num_blocks):
-        for jdx in range(idx+1, num_blocks): # Do we add a +1 here?
-            # print("Generating the linear connection between blocks: ", idx, jdx)
+        for jdx in range(idx+1, num_blocks):
             block2block[idx][jdx] = nn.Linear(
                 in_features=hidden_size,
                 out_features=hidden_size,

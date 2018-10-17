@@ -86,7 +86,7 @@ if __name__ == "__main__":
     print(corpus.dictionary.word2idx)
     print("We have so many elements in total: ", len(corpus.dictionary.idx2word))
 
-    # for x in corpus.dictionary.counter:
+    # for x in CORPUS.dictionary.counter:
     #     print(x)
 
-    print("Successfully created the corpus")
+    print("Successfully created the CORPUS")
