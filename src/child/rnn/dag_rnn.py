@@ -98,7 +98,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         print("Resetting parameters to correct weights")
-        init_range = ARG.shared_init_weight_range_train if self.is_train else ARG.shared_init_weight_range_real_train
+        init_range = ARG.shared_init_weight_range_train \
+            if self.is_train else ARG.shared_init_weight_range_real_train
         for param in self.parameters():
             param.data.uniform_(-init_range, init_range)
 
@@ -197,10 +198,10 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             outputs.append(partial_outputs[str(i)][None, :])
             _graph_add_final_block(GEN_GRAPH, graph, i)
 
+        # The averaged outputs are the new hidden state now,
+        # and we get the logits by decoding it to the dimension of the input
         averaged_output = torch.cat(outputs, 0)
-
-        # The averaged outputs are the new hidden state now, and we get the logits by decoding it to the dimension of the input
-        output = torch.mean(averaged_output, dim=0)  # partial_outputs[str(ARG.num_blocks - 1)]
+        output = torch.mean(averaged_output, dim=0)  # TODO: is it the average, or partial_outputs[str(ARG.num_blocks - 1)]
 
         # TODO: need to implement batch normalization
         # if self.batch_norm is not None and ARG.use_batch_norm:
@@ -224,10 +225,24 @@ class dlxDAGRNNModule(dlxRNNModelBase):
             return self.build_cell(inputx, hidden, self.dag)
 
     def overwrite_dag(self, new_dag):
+        """
+            This operations overwrites the internal dag of the model
+            by the given dag description.
+        :param new_dag:
+        :return:
+        """
         assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
         self.dag = new_dag
 
     def set_train(self, is_train=True):
+        """
+            This operation sets the model if it is in training mode
+            or in testing mode.
+            Statistics, such as dropout and batchnormalization
+            are affected by this
+        :param is_train:
+        :return:
+        """
         self.is_train = is_train
 
         # Set pytorch specific train and eval function
@@ -236,6 +251,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         else:
             self.eval()
 
+        # TODO: apply batchnmorm for training
         # Apply BatchNorm
         # if is_train:
         #     self.batch_norm = nn.BatchNorm1d(ARG.shared_hidden)
@@ -247,7 +263,6 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         super(dlxDAGRNNModule, self).__init__()
 
         # Used probably for every application
-        # self.word_embedding_module_encoder = torch.nn.Embedding(10000, ARG.shared_embed)
         self.word_embedding_module_encoder = EmbeddingDropout(
             10000,
             ARG.shared_embed,
@@ -262,11 +277,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
                 "Sizes of hidden and shared weights must be the same!", ARG.shared_embed, ARG.shared_hidden)
             self.word_embedding_module_decoder.weight = self.word_embedding_module_encoder.weight
 
-        # Spawn the variational dropout cell (used before the input, and after the output)
         self.var_dropout = VariationalDropout()
-        # The dropout applied for each weight (TODO: should be drop-connect)
-        self.w_dropout = torch.nn.Dropout(ARG.shared_wdrop)
-
+        self.w_dropout = torch.nn.Dropout(ARG.shared_wdrop) # TODO: should be drop-connect
         self.sigmoid = torch.nn.Sigmoid()
 
         self._generate_block_weights()
@@ -295,9 +307,19 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # exit(0)
 
     def word_embedding_encoder(self, inputx):
+        """
+            Applies the word embedding to the ordinal input vector (to the continuous vector)
+        :param inputx:
+        :return:
+        """
         return self.word_embedding_module_encoder(inputx)
 
     def word_embedding_decoder(self, inputx):
+        """
+            Applies the word embedding decoder, from the constinuous, to the ordinal input vector
+        :param inputx:
+        :return:
+        """
         # Need to pass through softmax first
         return self.word_embedding_module_decoder(inputx)
 
@@ -309,8 +331,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
 
-        # This is not correctly implemented, because the weights will become zero after some time!
-        # Apply dropout to the weights!
+        # TODO: One way to apply drop-connect (drop the individual weight fields)
         # self.h_weight_hidden2block.weight = _get_dropped_weights(
         #     self.h_weight_hidden2block.weight,
         #     ARG.shared_wdrop,
@@ -322,8 +343,9 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # )
 
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
+        # TODO: also include possibility to equal to test-batch_size
+        assert X.size(0) == ARG.batch_size, "Batch size does not match first dimension"
 
-        batch_size = X.size(0)
         time_steps = X.size(1)
 
         outputs = []
@@ -331,34 +353,28 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         # First input to cell
         current_X = X[:, 0]
         embed = self.word_embedding_encoder(current_X)
-
-        # Apply dropout input
         embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
+
         hidden = self.cell(inputx=embed, hidden=None)
         logit = self.word_embedding_decoder(hidden)
-        # Apply dropout output
         logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
+
         outputs.append(logit)
 
         # Dynamic unrolling of the cell for the rest of the timesteps
         for i in range(1, time_steps):
             current_X = X[:, i]
             embed = self.word_embedding_encoder(current_X)
-
-            # Apply dropout input
             embed = self.var_dropout(embed, ARG.shared_dropouti if self.is_train else 0)
 
             hidden = self.cell(inputx=embed, hidden=hidden)
             logit = hidden
-
-            # Apply dropout output
             logit = self.var_dropout(logit, ARG.shared_dropout if self.is_train else 0)
 
             logit = self.word_embedding_decoder(logit)
             outputs.append(logit)
 
-        output = torch.cat(outputs, 1)  # Concatenate along the time axis
-        # Take argmax amongst last axis,
+        output = torch.cat(outputs, 1)  # Concatenate along the time axis (last axis)
 
         return output
 
@@ -395,24 +411,24 @@ if __name__ == "__main__":
     #
     # # for i in range(100):
     # #     model.build_cell(inputx=X, hidden=hidden, dag=dag_list)
-    child_model = dlxDAGRNNModule()
-    child_trainer = src.child.dag_train_wrapper.DAGTrainWrapper(child_model)
+    CHILD_MODEL = dlxDAGRNNModule()
+    CHILD_TRAINER = src.child.dag_train_wrapper.DAGTrainWrapper(CHILD_MODEL)
 
-    dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
-    dag_list = [int(x) for x in dag_description.split()]
+    DAG_DESCRIPTION = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
+    DAG_LIST = [int(x) for x in DAG_DESCRIPTION.split()]
 
-    data, target = load_dataset(dev=True)
-    data = data[:10]
-    target = target[:10]
+    DATA, TARGET = load_dataset(dev=True)
+    DATA = DATA[:10]
+    target = TARGET[:10]
 
-    print("Whats the size of the data", data[:20].size())
+    print("Whats the size of the data", DATA[:20].size())
     # exit(0)
 
-    X = data
-    Y = target
+    X = DATA
+    Y = TARGET
 
-    child_model.overwrite_dag(dag_list)
-    Y_hat = child_model.forward(X)
+    CHILD_MODEL.overwrite_dag(DAG_LIST)
+    Y_hat = CHILD_MODEL.forward(X)
     print("Y_hat size is: ", Y_hat.size())
     print("Y size is: ", Y.size())
     assert Y_hat.size(0) == X.size(0), ("Sizes dont conform: ", Y_hat.size(), X.size())
