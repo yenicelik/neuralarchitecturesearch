@@ -7,18 +7,18 @@
         dag_description = "0 0 2 1 1 0 3 3 1 4 0 0 2"
         dag_description = "1 0 3 0 1 1 2 3 0"
 """
-import os
 import gc
-import shutil
 import torch
 import numpy as np
 from torch.autograd import Variable
 
 from src.MetaTrainerBase import MetaTrainerBase
 from src.child.rnn import dag_rnn# .dlxDAGRNNModule
-import src.child.train_wrapper as dag_train_wrapper
+import src.child.child_wrapper as dag_train_wrapper
 from src.config import config, C_DEVICE
-from src._training.debug_utils.rnn_debug import load_dataset
+from src._training.debug_utils.rnn_debug import load_dataset, _print_batches
+from src.controller.controller_network import ControllerLSTM
+from src.controller.controller_wrapper import ControllerWrapper
 from src.model_config import ARG
 from src.utils.debug_utils.exploding_gradients import _check_abs_max_grad
 from src.utils.debug_utils.size_network import memory_usage_resource
@@ -63,6 +63,10 @@ class MetaTrainer(MetaTrainerBase):
         self.Y_test = Variable(Y_test)
 
         # Spawn one controller model
+        self.controller_model = ControllerLSTM()
+        self.controller_model.to(C_DEVICE)
+
+        self.controller_wrapper = ControllerWrapper(self.controller_model)
 
         # Spawn one child model
         self.child_model = dag_rnn.dlxDAGRNNModule()
@@ -79,25 +83,32 @@ class MetaTrainer(MetaTrainerBase):
     ############################################
     def get_child_validation_loss(self):
         """
-            Wrapper around the 'get_loss' function in the child model
+            Wrapper around the 'get_loss' function in the child model.
+            This can take random indices, just because we apply it quite frequently!
         :return:
         """
-        if config['dummy_debug']:
-            # If we use it for syntactic checking of the program
-            import random
-            return random.random()
-        else:
-            # If we use it for semantic checking / actually running the program
-            return self.child_wrapper.get_loss(self.X_val, self.Y_val)
+        # Choose random indices to feed in to validation loss getter
+        ranomd_indices = np.random.choice(
+            np.arange(self.X_val.size(0)),
+            ARG.shared_max_step * ARG.batch_size // 3
+        )
+
+        with torch.no_grad():
+            loss = self.child_wrapper.get_loss(
+                self.X_val[ranomd_indices].detach(),
+                self.Y_val[ranomd_indices].detach(),
+                'validation'
+            )
+
+        return loss
 
     def get_child_test_loss(self):
-        if config['dummy_debug']:
-            # If we use it for syntactic checking of the program
-            import random
-            return random.random()
-        else:
-            # If we use it for the actualy  running / semantic checking
-            return self.child_wrapper.get_loss(self.X_test, self.Y_test)
+        """
+            Wrapper around the 'get_loss' function in the child model.
+            This has to go through the entire test loss, as this has to be fast!
+        :return:
+        """
+        return self.child_wrapper.get_loss(self.X_test, self.Y_test, 'test')
 
     ############################################
     # Anything related to the joint algorithms
@@ -116,15 +127,20 @@ class MetaTrainer(MetaTrainerBase):
         dag_description = "" # Initial dag description is empty!
         dag_list = [] # Initial dag_list is empty
 
+        m = self.X_train.size(0)
+
         self._write_to_log_histograms()
 
         for current_epoch in range(ARG.max_epoch):
 
             # TODO: Do we create a new model for every epoch, or for each "max steps"?
-            for minibatch_offset in range(
-                    0, self.X_train.size(0), ARG.shared_max_step * ARG.batch_size):
+            for minibatch_offset in range(0, m, ARG.shared_max_step * ARG.batch_size):
 
                 _print_to_std_memory_logs(identifier="P0")
+
+                ##############################
+                # SAMPLE DAG FROM CONTROLLER #
+                ##############################
 
                 dag_description = "0 0 0 1 1 2 1 2 0 2 0 5 1 1 0 6 1 8 1 8 1 8 1"
                 dag_list = [int(x) for x in dag_description.split()]
@@ -153,17 +169,7 @@ class MetaTrainer(MetaTrainerBase):
 
                 _print_to_std_memory_logs(identifier="P2")
 
-                # Choose random indices to feed in to validation loss getter
-                ranomd_indices = np.random.choice(
-                    np.arange(self.X_val.size(0)),
-                    ARG.shared_max_step * ARG.batch_size // 3
-                )
-
-                with torch.no_grad():
-                    loss = self.child_wrapper.get_loss(
-                        self.X_val[ranomd_indices].detach(),
-                        self.Y_val[ranomd_indices].detach()
-                    )
+                loss = self.get_child_validation_loss()
 
                 # Some ugly stuff on logging
                 print("Validation loss: ", loss)
@@ -213,8 +219,10 @@ if __name__ == "__main__":
     M = DATA.size(0)
     print("So many samples!")
 
-    TRAIN_OFF = round(M * (11. / 12))
-    VAL_OFF = round(M * (1. / 12))
+    # TRAIN_OFF = round(M * (11. / 12))
+    # VAL_OFF = round(M * (1. / 12))
+    TRAIN_OFF = round(M * (1. / 24))
+    VAL_OFF = round(M * (1. / 25))
 
     # The second size element should represent the embedding
     # This is needed for the crossentropy loss function
@@ -230,14 +238,14 @@ if __name__ == "__main__":
     gc.collect()
     torch.cuda.empty_cache()
 
-    # if config['debug_printbatch']:
-    #     print_batches(X_train, Y_train)
-    #
-    # if config['debug_printbatch']:
-    #     print_batches(X_val, Y_val)
-    #
-    # if config['debug_printbatch']:
-    #     print_batches(X_test, Y_test)
+    if config['debug_printbatch']:
+        _print_batches(X_train, Y_train)
+
+    if config['debug_printbatch']:
+        _print_batches(X_val, Y_val)
+
+    if config['debug_printbatch']:
+        _print_batches(X_test, Y_test)
 
     # print_batches(data, target)
 

@@ -6,6 +6,8 @@ from src.config import config
 from src.model_config import ARG
 from src.preprocessor.text import Corpus, batchify
 
+print("Loading corpus...")
+
 CORPUS = Corpus(config['basepath'] + "data/ptb/")
 
 def to_word(x):
@@ -40,7 +42,7 @@ def load_dataset(dev=False, dev_size=500, verbose=True):
     gc.collect()
 
     if config['debug_printbatch']:
-        print_batches(data, target)
+        _print_batches(data, target)
 
     if config['debug_printbatch'] and verbose:
         print(batch)
@@ -48,7 +50,7 @@ def load_dataset(dev=False, dev_size=500, verbose=True):
 
     return data, target
 
-def print_batches(X, Y, counter_max=10):
+def _print_batches(X, Y, counter_max=10):
     """
         Prints the batches to check if the data is still correct).
         This is human readable (the output are word strings, not word-ids!)
@@ -57,16 +59,18 @@ def print_batches(X, Y, counter_max=10):
     :param c_max:
     :return:
     """
-    counter = 0
-    print("\n\n\n\n###############################")
-    print("PRINTING EXAMPLES")
 
-    for idx in range(X.size(0)):
-        print([to_word(X[idx][jdx]) for jdx in range(X.size(1))])
-        print([to_word(Y[idx][jdx]) for jdx in range(Y.size(1))])
-        print("\n")
-        counter += 1
-        if counter > counter_max:
-            break
+    if config['debug_printbatch']:
+        counter = 0
+        print("\n\n\n\n###############################")
+        print("PRINTING EXAMPLES")
 
-    print("SIZES ARE: ", X.size(), Y.size())
+        for idx in range(X.size(0)):
+            print([to_word(X[idx][jdx]) for jdx in range(X.size(1))])
+            print([to_word(Y[idx][jdx]) for jdx in range(Y.size(1))])
+            print("\n")
+            counter += 1
+            if counter > counter_max:
+                break
+
+        print("SIZES ARE: ", X.size(), Y.size())

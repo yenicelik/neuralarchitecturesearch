@@ -37,7 +37,7 @@ class MetaTrainerBase:
 
         # Controller variables
         self.controller_model = None
-        self.controller_trainer = None
+        self.controller_wrapper = None
 
     #################################
     # Anything related to the controller model
