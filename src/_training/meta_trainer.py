@@ -91,7 +91,7 @@ class MetaTrainer(MetaTrainerBase):
         # 1. Creates a function which take
         def current_reward_function(dag):
             # First, overwrite the dag
-            self.child_model.overwrite_dag(dag)
+            self._overwrite_dag(dag)
             # Then, calculate the validation loss on this newly dag'ed structure
             reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True) # TODO: should this be a fast_calculation?
             return reward
@@ -108,7 +108,8 @@ class MetaTrainer(MetaTrainerBase):
             Overwrites the dag of the child network
         :return:
         """
-        self.child_model.overwrite_dag(dag)
+        new_dag = [x.item() for x in dag]
+        self.child_model.overwrite_dag(new_dag)
 
     def train_child_network(self):
         """
@@ -174,7 +175,7 @@ class MetaTrainer(MetaTrainerBase):
                   ARG.shared_max_step,
                   m
                   )
-            tx_writer.add_scalar('loss/child_val_loss', loss, eval_idx)
+            tx_writer.add_scalar('loss/recurring_child_val_loss', loss, eval_idx)
 
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
             tx_writer.add_scalar('misc/max_gradient', biggest_gradient, self.current_epoch)
