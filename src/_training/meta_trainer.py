@@ -68,25 +68,40 @@ class MetaTrainer(MetaTrainerBase):
         self.child_model = dag_rnn.dlxDAGRNNModule()
         self.child_model.to(C_DEVICE)
 
-        self.child_trainer = dag_train_wrapper.DAGTrainWrapper(self.child_model)
+        self.child_wrapper = dag_train_wrapper.ChildWrapper(self.child_model)
 
-    # Functions about accessing the controller
-    # (such that we have well handled setters and getters)
+    ############################################
+    # Anything related to the controller model
+    ############################################
 
-    # Functions about accessing the child model
-    # (such that we have well handled setters and getters)
-
+    ############################################
+    # Anything related to the child model
+    ############################################
     def get_child_validation_loss(self):
         """
-            Gets the validation loss of the child network.
-            Will be moved to the child wrapper soon.
+            Wrapper around the 'get_loss' function in the child model
         :return:
         """
-        # TODO: Implement this in the child wrapper!
-        import random
-        return random.random()
+        if config['dummy_debug']:
+            # If we use it for syntactic checking of the program
+            import random
+            return random.random()
+        else:
+            # If we use it for semantic checking / actually running the program
+            return self.child_wrapper.get_loss(self.X_val, self.Y_val)
 
+    def get_child_test_loss(self):
+        if config['dummy_debug']:
+            # If we use it for syntactic checking of the program
+            import random
+            return random.random()
+        else:
+            # If we use it for the actualy  running / semantic checking
+            return self.child_wrapper.get_loss(self.X_test, self.Y_test)
 
+    ############################################
+    # Anything related to the joint algorithms
+    ############################################
     def train_controller_and_child(self):
         """
             The main "king" function.
@@ -131,7 +146,7 @@ class MetaTrainer(MetaTrainerBase):
                 if config['debug_memory']:
                     print("Training size is: ", X_minibatch.size(), " from ", self.X_train.size())
 
-                self.child_trainer.train(
+                self.child_wrapper.train(
                     X=X_minibatch.detach(),
                     Y=Y_minibatch.detach()
                 )
@@ -145,7 +160,7 @@ class MetaTrainer(MetaTrainerBase):
                 )
 
                 with torch.no_grad():
-                    loss = self.child_trainer.get_loss(
+                    loss = self.child_wrapper.get_loss(
                         self.X_val[ranomd_indices].detach(),
                         self.Y_val[ranomd_indices].detach()
                     )
@@ -175,7 +190,7 @@ class MetaTrainer(MetaTrainerBase):
                         ARG.shared_decay ** (current_epoch - ARG.shared_decay_after)
                 )
                 print("Updating learning rate to ", new_lr)
-                self.child_trainer.update_lr(new_lr)
+                self.child_wrapper.update_lr(new_lr)
 
             is_best = loss < best_val_loss
 

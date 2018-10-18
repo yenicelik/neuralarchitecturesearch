@@ -433,4 +433,4 @@ if __name__ == "__main__":
     print("Y size is: ", Y.size())
     assert Y_hat.size(0) == X.size(0), ("Sizes dont conform: ", Y_hat.size(), X.size())
     assert Y_hat.size(1) == X.size(1), ("Sizes dont conform: ", Y_hat.size(), X.size())
-    # self.child_trainer.train(self.X_train, self.Y_train)
+    # self.child_wrapper.train(self.X_train, self.Y_train)

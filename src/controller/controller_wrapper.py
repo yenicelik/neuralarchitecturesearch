@@ -2,14 +2,12 @@
     Wrapper class around the controller
 """
 import torch
-
 from torch.autograd import Variable
-
-from src.utils.debug_utils.tensorboard_tools import tx_writer
 
 from src.controller.controller_network import ControllerLSTM
 from src.controller.debug_utils import example_reward
 from src.model_config import ARG
+from src.utils.debug_utils.tensorboard_tools import tx_writer
 
 
 class ControllerWrapper:

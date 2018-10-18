@@ -37,7 +37,13 @@ else:
     C_DEVICE = torch.device('cpu')
     config['cuda'] = False
 
+config['dummy_debug'] = True
+
 config['debug_memory'] = False
 config['debug_printbatch'] = False
 config['debug_print_max_gradient'] = True
 config['debug_weights_histogram'] = False
+
+if config['dummy_debug']:
+    print("\n\n\n\n")
+    print("DUMMY DEBUG MODE ON! WATCH OUT BEFORE YOU PUSH THIS TO PRODUCTION!")

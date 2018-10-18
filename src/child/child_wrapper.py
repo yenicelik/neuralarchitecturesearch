@@ -29,7 +29,7 @@ def _debug_memory_print(identifier):
         print("Memory usage Loss {}: ".format(identifier), memory_usage_resource())
 
 
-class DAGTrainWrapper:
+class ChildWrapper:
 
     def update_lr(self, lr):
         """
@@ -84,6 +84,24 @@ class DAGTrainWrapper:
     #     print(class_probabilities.size())
     #
     #     return prediction_index, class_probabilities
+
+    def _data_pass(self, X, Y):
+        """
+            Makes forward passes (with or without backward step
+        :return:
+        """
+
+        loss_arr = []
+        for data_idx in range(0, X.size(0), ARG.batch_size):
+
+            if data_idx + ARG.batch_size > X.size(0):
+                break
+
+            _debug_memory_print(1)
+
+            # Take subset of data, and apply all operations based on that
+            X_cur = X[data_idx:data_idx + ARG.batch_size].to(C_DEVICE).detach()
+            Y_cur = Y[data_idx:data_idx + ARG.batch_size].to(C_DEVICE).detach()
 
     def get_loss(self, X, Y):
         """
@@ -175,9 +193,7 @@ class DAGTrainWrapper:
                 break
 
             # print("Getting the individual batch for training")
-
-            if config['debug_memory']:
-                print("Memory usage L1: ", memory_usage_resource())
+            _debug_memory_print("L1")
 
             X_cur = X[train_idx:train_idx + ARG.batch_size, :].to(C_DEVICE).detach()
             Y_cur = Y[train_idx:train_idx + ARG.batch_size, :].to(C_DEVICE).detach()
@@ -248,9 +264,9 @@ if __name__ == "__main__":
     MODEL = dag_rnn.dlxDAGRNNModule()
     MODEL.overwrite_dag(DAG_LIST)
 
-    trainer = DAGTrainWrapper(MODEL)
+    TRAINER = ChildWrapper(MODEL)
     # Example forward pass
     # X = torch.randint((401, 4, 50))
     # trainer.train(X[:400,:], X[1:,:])
 
-    trainer.predict(X[:400, :])
+    TRAINER.predict(X[:400, :])
