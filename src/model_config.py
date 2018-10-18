@@ -25,11 +25,11 @@ net_arg.add_argument('--controller_max_step', type=int, default=1000) # TODO: ac
 learn_arg.add_argument('--ema_baseline_decay', type=int, default=0.95)
 learn_arg.add_argument('--discount', type=float, default=1.0)
 learn_arg.add_argument('--controller_lr', type=float, default=3.5e-4, help="will be ignored if --controller_lr_cosine=True")
+learn_arg.add_argument('--reward_c', type=float, default=80., help="")
 
 # TODO:
 learn_arg.add_argument('--tanh_c', type=float, default=2.5) # such that the controller explores more
 learn_arg.add_argument('--softmax_temperature', type=float, default=5.0) # such that
-
 
 
 # Shared parameters for the child controller

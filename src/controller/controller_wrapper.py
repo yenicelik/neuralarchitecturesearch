@@ -24,9 +24,18 @@ class ControllerWrapper:
             lr=ARG.controller_lr
         )
 
+    def sample_dag(self):
+
+        dag_ops, entropy_history, log_probability_history = \
+            self.controller_model.forward(input=None)
+
+        return dag_ops
+
     def train_controller(self, reward_function):
         """
             Implements the REINFORCE algorithm
+        :validation_loss_function:
+            This function needs to take as input the dag.
         :return:
         """
         # The reward_baseline is the expected average value

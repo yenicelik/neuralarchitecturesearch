@@ -232,6 +232,8 @@ class dlxDAGRNNModule(dlxRNNModelBase):
         :return:
         """
         assert isinstance(new_dag, list), ("DAG is not in the form of a list! ", new_dag)
+        assert len(new_dag) > 0, ("DAG list cannot be empty!", new_dag)
+        assert isinstance(new_dag[0], int), ("DAG must have correct input types", new_dag)
         self.dag = new_dag
 
     def set_train(self, is_train=True):
