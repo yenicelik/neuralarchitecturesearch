@@ -197,9 +197,9 @@ class ChildWrapper:
             verbose_loss=True
         )
 
-        total_loss = sum(loss_arr) / len(loss_arr)
+        total_loss = sum(loss_arr)
 
-        return np.exp(total_loss) / Y.size(0)  # Gotta normalize the loss
+        return np.exp(total_loss) / len(loss_arr)  # Gotta normalize the loss
 
     def train(self, X, Y):
         """
@@ -228,9 +228,9 @@ class ChildWrapper:
         )
 
         # TODO: before this, the loss was different!
-        total_loss = sum(loss_arr) / len(loss_arr)
+        total_loss = sum(loss_arr)
 
-        return np.exp(total_loss) / Y.size(0)
+        return np.exp(total_loss) / len(loss_arr)
 
 
 if __name__ == "__main__":
