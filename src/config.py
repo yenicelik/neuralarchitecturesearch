@@ -8,8 +8,10 @@ config = {}
 # Determine if we're on a cluster, on on mac
 if platform == "linux" or platform == "linux2":
     config['basepath'] = "/home/david/neuralarchitecturesearch/"
+    config['dummy_debug'] = False
 elif platform == "darwin":
     config['basepath'] = "/Users/david/neuralarchitecturesearch/"
+    config['dummy_debug'] = True
 
 config['datapath_save_weights'] = config['basepath'] + "model/weights/"
 config['model_savepath'] = config['basepath'] + "model_saves/"
@@ -28,7 +30,7 @@ if not os.path.exists(os.path.dirname(config['tensorboard_savepath'])):
 # Constants (used often, and as a variable)
 
 # Checking if the memory leak is only because of cuda!
-if True or torch.cuda.is_available():
+if torch.cuda.is_available():
     print("Using cuda!")
     C_DEVICE = torch.device('cuda')
     config['cuda'] = True
@@ -36,9 +38,6 @@ else:
     print("Using cpu!")
     C_DEVICE = torch.device('cpu')
     config['cuda'] = False
-
-
-config['dummy_debug'] = False
 
 config['debug_memory'] = False
 config['debug_printbatch'] = False

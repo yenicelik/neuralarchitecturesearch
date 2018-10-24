@@ -92,15 +92,24 @@ class ChildWrapper:
         :return:
         """
 
+        print("Identifier prefix ", identifier_prefix)
+
         assert X.size() == Y.size(), ("Not the same size! (X, Y) :: ", X.size(), Y.size())
+        assert X.size(0) > 0, ("X is empty!")
+        if X.size(0) < ARG.batch_size:
+            print("SPECIAL FLAG UP!!!!!!") # , ("Not batch size ", X.size())
 
         data_size = X.size(0)
 
-        loss_arr = torch.empty(data_size // ARG.batch_size)
-        for data_idx in range(0, X.size(0), ARG.batch_size):
+        # TODO: plus 1 bcs we will have one additional item! look this up again!
+        loss_arr = torch.zeros(data_size // ARG.batch_size)
+        print("GETTING THERE111")
+        for data_idx in range(0, max(data_size, ARG.batch_size), ARG.batch_size):
+            print("NOT SKIPPING THE LOOP")
 
-            if data_idx + ARG.batch_size > X.size(0):
-                break
+            # if data_idx + ARG.batch_size > X.size(0):
+            #     print("X size: ", X.size(0))
+            #     break
 
             _debug_memory_print(identifier_prefix + str(1))
 
@@ -111,6 +120,7 @@ class ChildWrapper:
             _print_batches(X_cur, Y_cur)
             _debug_memory_print(identifier_prefix + str(2))
 
+            print("Forward prop: ")
             Y_hat = self.model.forward(X_cur)
             _debug_memory_print(identifier_prefix + str(3))
 
@@ -122,10 +132,15 @@ class ChildWrapper:
             Y_cur = Y_cur.transpose(1, -1).contiguous()
             Y_cur = Y_cur.transpose(2, -1).contiguous()
             Y_cur = Y_cur.squeeze()
+
+            print("Going through _data_pass")
+            print("With data batches: ", X_cur.size(), Y_cur.size(), Y_hat.size())
+
             _debug_memory_print(identifier_prefix + str(4))
 
             # TODO: normalize loss appropriately
             loss = self.criterion(Y_hat, Y_cur)
+            print("Individual loss is (TT231) :: ", loss)
             _debug_memory_print(identifier_prefix + str(5))
 
             if verbose_loss:
@@ -151,7 +166,7 @@ class ChildWrapper:
                 self.optimizer.step()
                 _debug_memory_print(identifier_prefix + str(7))
 
-            loss_arr[data_idx // ARG.batch_size] = loss.item() / ARG.batch_size
+            loss_arr[data_idx // ARG.batch_size] = loss.item()
 
             tx_counter[0] += 1
             # TODO: Add the actual perplexity loss here!
@@ -167,11 +182,14 @@ class ChildWrapper:
                 sys.stdout.write("-")
                 sys.stdout.flush()
 
-        sys.stdout.write("\n")
-        print()
+        print("GETTING THERE222")
 
-        loss_arr = loss_arr / (data_size // ARG.batch_size)
-        print(loss_arr)
+        sys.stdout.write("\n")
+
+        loss_arr = loss_arr / data_size
+        print("Loss array is (TT21): ", loss_arr)
+
+        assert len(loss_arr) > 0, ("Loss array is zero!", loss_arr)
 
         return loss_arr
 
@@ -199,7 +217,9 @@ class ChildWrapper:
 
         total_loss = sum(loss_arr)
 
-        return np.exp(total_loss) / len(loss_arr)  # Gotta normalize the loss
+        # TODO: Why is the length ofhte loss-arr zero?
+
+        return np.exp(total_loss) / (max(len(loss_arr), 1))  # Gotta normalize the loss
 
     def train(self, X, Y):
         """
@@ -218,7 +238,13 @@ class ChildWrapper:
         self.model.set_train(is_train=True)
 
         assert X.size() == Y.size(), ("Not same size! (X, Y) :: ", X.size(), Y.size())
+        assert X.size(0) > 0, ("X and Y :: ", X)
 
+        if X.size(0) < ARG.batch_size:
+            print("SPECIAL FLAG UP!!!!!!!")
+            # assert X.size(0) >= ARG.batch_size, ("X batch size does not match ", X.size(0))
+
+        print("Weird thing is inside data pass..")
         loss_arr = self._data_pass(
             X=X,
             Y=Y,
@@ -226,11 +252,13 @@ class ChildWrapper:
             apply_backward=True,
             verbose_loss=False
         )
+        print("Weird thing is outside..")
 
         # TODO: before this, the loss was different!
         total_loss = sum(loss_arr)
 
-        return np.exp(total_loss) / len(loss_arr)
+        # TODO. returned element from _data_pass is zero
+        return np.exp(total_loss) / max(1, len(loss_arr))
 
 
 if __name__ == "__main__":

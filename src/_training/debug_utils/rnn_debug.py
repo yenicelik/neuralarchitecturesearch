@@ -48,6 +48,9 @@ def load_dataset(dev=False, dev_size=500, verbose=True):
         print(batch)
         print(batch.size())
 
+    # data = data[:(data.size(0) // ARG.batch_size) * ARG.batch_size]
+    # target = target[:(target.size(0) // ARG.batch_size) * ARG.batch_size]
+
     return data, target
 
 def _print_batches(X, Y, counter_max=10):

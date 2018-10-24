@@ -21,8 +21,8 @@ class ControllerLSTM(nn.Module):
         )
 
         # Simply have one encoder for each individual sequence item
-        self.encoders_activation = {}
-        self.encoders_block = {}
+        self.encoders_activation = [None for i in range(ARG.num_blocks)] # {}
+        self.encoders_block = [None for i in range(ARG.num_blocks)] # {}
 
         # TODO: Probably there is a better way to do this
         # We don't have an encoder for the very first item!
@@ -40,8 +40,8 @@ class ControllerLSTM(nn.Module):
 
         # Now comes the decoder functions
         # The first decoder is a linear connection to the activation
-        self.decoders_activation = {}
-        self.decoders_block = {}
+        self.decoders_activation = [None for i in range(ARG.num_blocks)] # {}
+        self.decoders_block = [None for i in range(ARG.num_blocks)] # {}
         # (this should be shared actually?)
         self.decoders_activation[0] = nn.Linear(
             ARG.controller_hid,
@@ -64,6 +64,12 @@ class ControllerLSTM(nn.Module):
                 block_idx,
                 bias=False
             )
+
+        # Add the decoders and the encoders to the modules list
+        self._decoders_activation = torch.nn.ModuleList(self.decoders_activation)
+        self._decoders_block = torch.nn.ModuleList(self.decoders_block)
+        self._encoders_activation = torch.nn.ModuleList(self.encoders_activation)
+        self._encoders_block = torch.nn.ModuleList(self.encoders_block)
 
         # Tying weights? TODO: do we need to tie weights?
 

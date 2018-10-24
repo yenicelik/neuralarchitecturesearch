@@ -56,6 +56,17 @@ class MetaTrainer(MetaTrainerBase):
         """
         super(MetaTrainer, self).__init__()
 
+        assert X_train.size(0) == Y_train.size(0)
+        assert X_train.size(0) % ARG.batch_size == 0, ("Not batch size compatible")
+
+        if X_test is not None:
+            assert X_test.size(0) == Y_test.size(0)
+            assert X_test.size(0) % ARG.batch_size == 0, ("Not batch size compatible")
+
+        if X_val is not None:
+            assert X_val.size(0) == Y_val.size(0)
+            assert X_val.size(0) % ARG.batch_size == 0, ("Not batch size compatible")
+
         self.X_train = Variable(X_train)
         self.Y_train = Variable(Y_train)
         self.X_val = Variable(X_val)
@@ -93,7 +104,7 @@ class MetaTrainer(MetaTrainerBase):
             # First, overwrite the dag
             self._overwrite_dag(dag)
             # Then, calculate the validation loss on this newly dag'ed structure
-            reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True, reward_calc=True) # TODO: should this be a fast_calculation?
+            reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True, reward_calc=True)
             return reward
 
         print("Training controller!")
@@ -149,12 +160,10 @@ class MetaTrainer(MetaTrainerBase):
                 dag = self.controller_wrapper.sample_dag()
                 self._overwrite_dag(dag, manual=False)
                 print("Current dag is: ", " ".join([str(x.item()) for x in dag]))
-                print("Non-manual: ", self.child_model.dag)
             else:
                 dag = dag_list
                 self._overwrite_dag(dag, manual=True)
                 print("Current dag is: ", " ".join([str(x) for x in dag]))
-                print("Manual: ", self.child_model.dag)
 
             _print_to_std_memory_logs(identifier="P0")
 
@@ -177,6 +186,7 @@ class MetaTrainer(MetaTrainerBase):
                 Y_batch
             )
 
+            print("Out of training batch..")
             _print_to_std_memory_logs(identifier="P2")
 
             # Some logging stuff
@@ -205,10 +215,11 @@ class MetaTrainer(MetaTrainerBase):
             This can take random indices, just because we apply it quite frequently!
         :return:
         """
-        rand_length = 10 if fast_calc else 1
+        print("Inside child validation loss")
+        rand_length = 10 if (fast_calc and not config['dummy_debug']) else 1
         # Choose random indices to feed in to validation loss getter
         random_indices = np.random.choice(
-            np.arange(self.X_val.size(0)), self.X_val.size(0)// rand_length
+            np.arange(self.X_val.size(0)), self.X_val.size(0) // rand_length
         )
         if reward_calc:
             # The paper mentions "In our language model experiment, the reward function is c/valid_ppl,
@@ -310,12 +321,11 @@ if __name__ == "__main__":
     print("So many samples!")
 
     if config['dummy_debug']:
-        TRAIN_OFF = round(M * (1. / 224))
-        VAL_OFF = round(M * (1. / 225))
+        TRAIN_OFF = (round(M * (1. / 224)) // ARG.batch_size) * ARG.batch_size
+        VAL_OFF = (round(M * (1. / 224)) // ARG.batch_size) * ARG.batch_size
     else:
-        TRAIN_OFF = round(M * (11. / 12))
-        VAL_OFF = round(M * (1. / 12))
-
+        TRAIN_OFF = (round(M * (11. / 12)) // ARG.batch_size) * ARG.batch_size
+        VAL_OFF = (round(M * (1. / 12)) // ARG.batch_size) * ARG.batch_size
 
     # The second size element should represent the embedding
     # This is needed for the crossentropy loss function
@@ -325,6 +335,12 @@ if __name__ == "__main__":
     Y_val = TARGET[TRAIN_OFF:TRAIN_OFF + VAL_OFF]
     X_test = DATA[TRAIN_OFF + VAL_OFF:]
     Y_test = TARGET[TRAIN_OFF + VAL_OFF:]
+
+
+    print("Total data size is: ")
+    print(X_train.size())
+    print(X_val.size())
+
 
     del DATA
     del TARGET
@@ -360,8 +376,6 @@ if __name__ == "__main__":
 
     # meta_trainer.train_controller_and_child()
     # META_TRAINER.train_joint()
-
-
 
     ##############################
     # TRAINING CHILD NETWORK
