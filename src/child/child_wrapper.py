@@ -156,7 +156,7 @@ class ChildWrapper:
             tx_counter[0] += 1
             # TODO: Add the actual perplexity loss here!
             tx_writer.add_scalar(
-                'loss/{}'.format(identifier_prefix),
+                'child/loss_{}'.format(identifier_prefix),
                 loss.item() / ARG.batch_size,
                 tx_counter[0]
             )
@@ -194,7 +194,7 @@ class ChildWrapper:
             Y=Y,
             identifier_prefix=id_prefix,
             apply_backward=False,
-            verbose_loss=True
+            verbose_loss=False
         )
 
         total_loss = sum(loss_arr)
@@ -222,7 +222,7 @@ class ChildWrapper:
         loss_arr = self._data_pass(
             X=X,
             Y=Y,
-            identifier_prefix="train",
+            identifier_prefix="training",
             apply_backward=True,
             verbose_loss=False
         )

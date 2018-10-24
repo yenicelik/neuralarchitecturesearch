@@ -93,8 +93,10 @@ class MetaTrainer(MetaTrainerBase):
             # First, overwrite the dag
             self._overwrite_dag(dag)
             # Then, calculate the validation loss on this newly dag'ed structure
-            reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True) # TODO: should this be a fast_calculation?
+            reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True, reward_calc=True) # TODO: should this be a fast_calculation?
             return reward
+
+        print("Training controller!")
 
         # 2. Train the controller on the given weights
         # (for the given amount of timesteps)
@@ -103,15 +105,18 @@ class MetaTrainer(MetaTrainerBase):
     ############################################
     # Anything related to the child model
     ############################################
-    def _overwrite_dag(self, dag):
+    def _overwrite_dag(self, dag, manual=False):
         """
             Overwrites the dag of the child network
         :return:
         """
-        new_dag = [x.item() for x in dag]
+        if manual:
+            new_dag = dag
+        else:
+            new_dag = [x.item() for x in dag]
         self.child_model.overwrite_dag(new_dag)
 
-    def train_child_network(self):
+    def train_child_network(self, dag_list=None):
         """
             Trains the child network for the specified number of steps
         :dag: The dag which was sampled from the network before
@@ -135,30 +140,41 @@ class MetaTrainer(MetaTrainerBase):
             self.child_wrapper.update_lr(new_lr)
 
         # Train the child wrapper for the given number of steps
-        # TODO: change the initial and last by a class variable which checks how many steps we have worked through already
-        for minibatch_offset in range(0, m, ARG.shared_max_step * ARG.batch_size):
+        # TODO: Do we pass through the entire dataset here?
+        # TODO: Should pass through the entire dataset instead!
+        for minibatch_offset in range(0, m, ARG.batch_size):
 
             # For each minibatch, sample a new dag
-            dag = self.controller_wrapper.sample_dag()
-            self._overwrite_dag(dag)
+            if dag_list is None:
+                dag = self.controller_wrapper.sample_dag()
+                self._overwrite_dag(dag, manual=False)
+                print("Current dag is: ", " ".join([str(x.item()) for x in dag]))
+                print("Non-manual: ", self.child_model.dag)
+            else:
+                dag = dag_list
+                self._overwrite_dag(dag, manual=True)
+                print("Current dag is: ", " ".join([str(x) for x in dag]))
+                print("Manual: ", self.child_model.dag)
 
             _print_to_std_memory_logs(identifier="P0")
 
             # Sample the respective dataset parts from the training data
-            X_minibatch = self.X_train[
+            X_batch = self.X_train[
                           minibatch_offset:
-                          minibatch_offset + ARG.shared_max_step * ARG.batch_size
+                          minibatch_offset + ARG.batch_size
                           ].detach()
-            Y_minibatch = self.Y_train[
+            Y_batch = self.Y_train[
                           minibatch_offset:
-                          minibatch_offset + ARG.shared_max_step * ARG.batch_size
+                          minibatch_offset + ARG.batch_size
                           ].detach()
+
+            print("Size of batch: ", X_batch.size())
 
             _print_to_std_memory_logs(identifier="P1")
 
             self.child_wrapper.train(
-                X_minibatch,
-                Y_minibatch
+                X_batch,
+                Y_batch
             )
 
             _print_to_std_memory_logs(identifier="P2")
@@ -167,15 +183,13 @@ class MetaTrainer(MetaTrainerBase):
             loss = self.get_child_validation_loss(fast_calc=True)
             print("Validation loss is: ", loss)
             # TODO: There should be a global logging counter!
-            logging_epoch = max(self.current_epoch, self.current_epoch * (m // ARG.shared_max_step))
-            eval_idx = (minibatch_offset // ARG.shared_max_step) + logging_epoch
+            eval_idx = (minibatch_offset // m) + self.current_epoch
             print("Eval idx is: ",
                   eval_idx,
                   minibatch_offset,
-                  ARG.shared_max_step,
                   m
                   )
-            tx_writer.add_scalar('loss/recurring_child_val_loss', loss, eval_idx)
+            tx_writer.add_scalar('child/dag_aftertraining_validation_loss', loss, eval_idx)
 
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
             tx_writer.add_scalar('misc/max_gradient', biggest_gradient, self.current_epoch)
@@ -185,23 +199,29 @@ class MetaTrainer(MetaTrainerBase):
 
             self._write_to_log_histograms()
 
-    def get_child_validation_loss(self, fast_calc=False):
+    def get_child_validation_loss(self, fast_calc=False, reward_calc=False):
         """
             Wrapper around the 'get_loss' function in the child model.
             This can take random indices, just because we apply it quite frequently!
         :return:
         """
-        rand_length = 3 if fast_calc else 1
+        rand_length = 10 if fast_calc else 1
         # Choose random indices to feed in to validation loss getter
-        ranomd_indices = np.random.choice(
-            np.arange(self.X_val.size(0)),
-            ARG.shared_max_step * ARG.batch_size // rand_length
+        random_indices = np.random.choice(
+            np.arange(self.X_val.size(0)), self.X_val.size(0)// rand_length
         )
+        if reward_calc:
+            # The paper mentions "In our language model experiment, the reward function is c/valid_ppl,
+            # where the perplexity is computed on a minibatch of validation data.
+            # I assume that this minibatch can be chosen freely
+            random_indices = np.random.choice(
+                np.arange(self.X_val.size(0)), ARG.batch_size
+            )
 
         with torch.no_grad():
             loss = self.child_wrapper.get_loss(
-                self.X_val[ranomd_indices].detach(),
-                self.Y_val[ranomd_indices].detach(),
+                self.X_val[random_indices].detach(),
+                self.Y_val[random_indices].detach(),
                 'validation'
             )
 
@@ -234,30 +254,34 @@ class MetaTrainer(MetaTrainerBase):
         best_val_loss = np.inf # Will be iteratively enhanced
 
         # Sample one initial dag
-        self.train_child_network()
-
-        self.train_controller_network()
 
         # First, train the child model
         for current_epoch in range(ARG.max_epoch):
 
+            print("Epoch: ", current_epoch)
+
+            print("Training child network...")
             self.train_child_network()
             # Calculate the validation accuracy of the model now (to check if training child reduces it)
             loss = self.get_child_validation_loss()
             print("Loss after training child for one epoch is: ", loss)
 
-            # TODO: add this loss to two different graphs:
+            tx_writer.add_scalar('joint/child_controller', 1, self.current_epoch)
+
             # The joint optimization graph,
             # And a child validation accuracy graph
 
             # Get the validation loss, and see if it is best.
             # If it is best, get the new best loss
 
+            print("Training controller network...")
             # Second, train the controller
             self.train_controller_network()
             # Calculate the validation accuracy of the model now (to check if training controller reduces it)
             loss = self.get_child_validation_loss()
             print("Loss after training controller for max_timesteps is: ", loss)
+
+            tx_writer.add_scalar('joint/child_controller', -1, self.current_epoch)
 
             is_best = loss < self.best_val_loss
 
@@ -270,6 +294,7 @@ class MetaTrainer(MetaTrainerBase):
                 filename=" ".join(self.child_model.dag)
             )
             # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
+            self.current_epoch += 1
 
         # Finally, return the test accuracy
         test_loss = self.get_child_test_loss()
@@ -284,10 +309,13 @@ if __name__ == "__main__":
     M = DATA.size(0)
     print("So many samples!")
 
-    # TRAIN_OFF = round(M * (11. / 12))
-    # VAL_OFF = round(M * (1. / 12))
-    TRAIN_OFF = round(M * (1. / 124))
-    VAL_OFF = round(M * (1. / 125))
+    if config['dummy_debug']:
+        TRAIN_OFF = round(M * (1. / 224))
+        VAL_OFF = round(M * (1. / 225))
+    else:
+        TRAIN_OFF = round(M * (11. / 12))
+        VAL_OFF = round(M * (1. / 12))
+
 
     # The second size element should represent the embedding
     # This is needed for the crossentropy loss function
@@ -331,4 +359,18 @@ if __name__ == "__main__":
     print("Before creating the train controller and child!")
 
     # meta_trainer.train_controller_and_child()
-    META_TRAINER.train_joint()
+    # META_TRAINER.train_joint()
+
+
+
+    ##############################
+    # TRAINING CHILD NETWORK
+    ##############################
+    for current_epoch in range(ARG.max_epoch):
+        print("Epoch is: ", current_epoch)
+        META_TRAINER.current_epoch = current_epoch
+        META_TRAINER.train_child_network()
+        # META_TRAINER._overwrite_dag(DAG_LIST, manual=True)
+        loss = META_TRAINER.get_child_validation_loss(fast_calc=True)
+        print("Loss is: ", META_TRAINER)
+

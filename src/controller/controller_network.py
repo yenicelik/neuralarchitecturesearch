@@ -278,7 +278,7 @@ class ControllerLSTM(nn.Module):
         # Assert the size of the ops to be number of 2*blocks + 1 (the +1 comes from the very first sample)
         assert len(dag_ops) == 2 * ARG.num_blocks - 1, (
         "Not matching number of blocks: ", len(dag_ops), 2 * ARG.num_blocks - 1)
-        assert len(dag_ops) == len(entropy_history), ("Sizes don't match! ", len(dag), len(entropy_history))
+        assert len(dag_ops) == len(entropy_history), ("Sizes don't match! ", len(dag_ops), len(entropy_history))
         assert len(dag_ops) == len(log_probability_history), (
         "Sizes don't match!", len(dag_ops), len(selected_log_probabilities))
 

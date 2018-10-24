@@ -26,8 +26,9 @@ class ControllerWrapper:
 
     def sample_dag(self):
 
-        dag_ops, entropy_history, log_probability_history = \
-            self.controller_model.forward(input=None)
+        with torch.no_grad():
+            dag_ops, entropy_history, log_probability_history = \
+                self.controller_model.forward(input=None)
 
         return dag_ops
 
@@ -86,7 +87,7 @@ class ControllerWrapper:
             loss_history.append(loss)
 
             # Add the values to the tensorboard!
-            tx_writer.add_scalar('controller/val_loss', loss, step)
+            tx_writer.add_scalar('controller/validation_loss', loss, step)
             tx_writer.add_scalar('controller/reward', reward, step)
             tx_writer.add_scalar('controller/advantage', adv, step)
 
