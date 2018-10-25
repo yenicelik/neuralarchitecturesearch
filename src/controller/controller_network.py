@@ -4,6 +4,7 @@ from torch import nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
+from src.config import C_DEVICE
 from src.model_config import ARG
 
 
@@ -72,6 +73,7 @@ class ControllerLSTM(nn.Module):
         self._encoders_block = torch.nn.ModuleList(self.encoders_block)
 
         # Tying weights? TODO: do we need to tie weights?
+        self._reset_initial_states()
 
     def _reset_parameters(self):
         """
@@ -100,19 +102,19 @@ class ControllerLSTM(nn.Module):
                 (ARG.controller_batch_size, ARG.controller_hid,)
             ),
             requires_grad=False
-        )
+        ).to(C_DEVICE)
         self.initial_hidden = torch.nn.Parameter(
             torch.zeros(
                 (ARG.controller_batch_size, ARG.controller_hid,)
             ),
             requires_grad=False
-        )
+        ).to(C_DEVICE)
         self.initial_input = torch.nn.Parameter(
             torch.zeros(
                 (ARG.controller_batch_size, ARG.controller_hid)
             ),
             requires_grad=False
-        )
+        ).to(C_DEVICE)
 
     def forward_activation(self, inputs, hidden, cell, block_id):
         """

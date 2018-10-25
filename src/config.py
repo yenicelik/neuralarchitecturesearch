@@ -41,7 +41,7 @@ else:
 
 config['debug_memory'] = False
 config['debug_printbatch'] = False
-config['debug_print_max_gradient'] = True
+config['debug_print_max_gradient'] = False
 config['debug_weights_histogram'] = False
 
 if config['dummy_debug']:

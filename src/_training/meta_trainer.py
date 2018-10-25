@@ -104,7 +104,9 @@ class MetaTrainer(MetaTrainerBase):
             # First, overwrite the dag
             self._overwrite_dag(dag)
             # Then, calculate the validation loss on this newly dag'ed structure
-            reward = ARG.reward_c / self.get_child_validation_loss(fast_calc=True, reward_calc=True)
+            loss = self.get_child_validation_loss(fast_calc=True, reward_calc=True)
+            reward = ARG.reward_c / np.exp(loss)
+            # This gets the perplexity! (will probably need a bit more details for regulaization
             return reward
 
         print("Training controller!")
@@ -177,7 +179,7 @@ class MetaTrainer(MetaTrainerBase):
                           minibatch_offset + ARG.batch_size
                           ].detach()
 
-            print("Size of batch: ", X_batch.size())
+            # print("Size of batch: ", X_batch.size())
 
             _print_to_std_memory_logs(identifier="P1")
 
@@ -186,23 +188,22 @@ class MetaTrainer(MetaTrainerBase):
                 Y_batch
             )
 
-            print("Out of training batch..")
             _print_to_std_memory_logs(identifier="P2")
 
             # Some logging stuff
-            loss = self.get_child_validation_loss(fast_calc=True)
-            print("Validation loss is: ", loss)
+            # print("Validation loss is: ", loss)
             # TODO: There should be a global logging counter!
-            eval_idx = (minibatch_offset // m) + self.current_epoch
-            print("Eval idx is: ",
-                  eval_idx,
-                  minibatch_offset,
-                  m
-                  )
-            tx_writer.add_scalar('child/dag_aftertraining_validation_loss', loss, eval_idx)
+            eval_idx = minibatch_offset + m * self.current_epoch
+            # print("Eval idx is: ",
+            #       eval_idx,
+            #       minibatch_offset,
+            #       m
+            #       )
+            # loss = self.get_child_validation_loss(fast_calc=True)
+            # tx_writer.add_scalar('child/dag_aftertraining_validation_loss', loss, eval_idx)
 
             biggest_gradient = _check_abs_max_grad(biggest_gradient, self.child_model)
-            tx_writer.add_scalar('misc/max_gradient', biggest_gradient, self.current_epoch)
+            tx_writer.add_scalar('misc/max_gradient', biggest_gradient, eval_idx)
 
             if config['debug_print_max_gradient']:
                 print("Biggest gradient is:", biggest_gradient)
@@ -215,11 +216,10 @@ class MetaTrainer(MetaTrainerBase):
             This can take random indices, just because we apply it quite frequently!
         :return:
         """
-        print("Inside child validation loss")
         rand_length = 10 if (fast_calc and not config['dummy_debug']) else 1
         # Choose random indices to feed in to validation loss getter
         random_indices = np.random.choice(
-            np.arange(self.X_val.size(0)), self.X_val.size(0) // rand_length
+            np.arange(self.X_val.size(0)), (self.X_val.size(0) // rand_length // ARG.batch_size) * ARG.batch_size
         )
         if reward_calc:
             # The paper mentions "In our language model experiment, the reward function is c/valid_ppl,
@@ -294,7 +294,7 @@ class MetaTrainer(MetaTrainerBase):
 
             tx_writer.add_scalar('joint/child_controller', -1, self.current_epoch)
 
-            is_best = loss < self.best_val_loss
+            is_best = loss < best_val_loss
 
             # Save the model once the epoch is done
             self._save_child_model(
@@ -302,7 +302,7 @@ class MetaTrainer(MetaTrainerBase):
                 loss=loss,
                 epoch=current_epoch,
                 dag=self.child_model.dag,
-                filename=" ".join(self.child_model.dag)
+                filename=" ".join([str(x) for x in self.child_model.dag])
             )
             # self.load_child_model(model_path="0_0_2_1_1_0_3_3_1_4_0_0_2_n927.torchsave")
             self.current_epoch += 1
@@ -333,14 +333,16 @@ if __name__ == "__main__":
     Y_train = TARGET[:TRAIN_OFF]
     X_val = DATA[TRAIN_OFF:TRAIN_OFF + VAL_OFF]
     Y_val = TARGET[TRAIN_OFF:TRAIN_OFF + VAL_OFF]
-    X_test = DATA[TRAIN_OFF + VAL_OFF:]
-    Y_test = TARGET[TRAIN_OFF + VAL_OFF:]
+
+    # X_test = DATA[TRAIN_OFF + VAL_OFF:]
+    # Y_test = TARGET[TRAIN_OFF + VAL_OFF:]
 
 
     print("Total data size is: ")
     print(X_train.size())
     print(X_val.size())
-
+    print(X_train.size(0) % ARG.batch_size)
+    print(X_val.size(0) % ARG.batch_size)
 
     del DATA
     del TARGET
@@ -375,16 +377,18 @@ if __name__ == "__main__":
     print("Before creating the train controller and child!")
 
     # meta_trainer.train_controller_and_child()
-    # META_TRAINER.train_joint()
+    META_TRAINER.train_joint()
 
     ##############################
     # TRAINING CHILD NETWORK
     ##############################
-    for current_epoch in range(ARG.max_epoch):
-        print("Epoch is: ", current_epoch)
-        META_TRAINER.current_epoch = current_epoch
-        META_TRAINER.train_child_network()
-        # META_TRAINER._overwrite_dag(DAG_LIST, manual=True)
-        loss = META_TRAINER.get_child_validation_loss(fast_calc=True)
-        print("Loss is: ", META_TRAINER)
+    # for current_epoch in range(ARG.max_epoch):
+    #     print("Epoch is: ", current_epoch)
+    #     META_TRAINER.current_epoch = current_epoch
+    #     # META_TRAINER._overwrite_dag(DAG_LIST, manual=True)
+    #     # META_TRAINER.train_child_network(dag_list=DAG_LIST)
+    #     META_TRAINER.train_child_network()
+    #     print("Getting validation loss")
+    #     loss = META_TRAINER.get_child_validation_loss(fast_calc=True)
+    #     print("Loss is: ", loss)
 

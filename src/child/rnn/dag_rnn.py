@@ -346,7 +346,7 @@ class dlxDAGRNNModule(dlxRNNModelBase):
 
         assert len(X.size()) > 2, ("Not enough dimensions! Expected more than 2 dimensions, but have ", X.size())
         # TODO: also include possibility to equal to test-batch_size
-        assert X.size(0) == ARG.batch_size, "Batch size does not match first dimension"
+        assert X.size(0) == ARG.batch_size, ("Batch size does not match first dimension", X.size(), ARG.batch_size)
 
         time_steps = X.size(1)
 

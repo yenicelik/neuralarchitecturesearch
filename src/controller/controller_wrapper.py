@@ -4,6 +4,7 @@
 import torch
 from torch.autograd import Variable
 
+from src.config import C_DEVICE
 from src.controller.controller_network import ControllerLSTM
 from src.controller.debug_utils import example_reward
 from src.model_config import ARG
@@ -82,7 +83,7 @@ class ControllerWrapper:
             # and entropy to torch variables!
             log_probabilities = torch.cat(log_probability_history)
             loss = -log_probabilities * Variable(
-                torch.FloatTensor([adv]))  # TODO something fucked up with the formats here
+                torch.FloatTensor([adv])).to(C_DEVICE)  # TODO something fucked up with the formats here
             loss = loss.sum()  # Receiving the final loss
             loss_history.append(loss)
 
